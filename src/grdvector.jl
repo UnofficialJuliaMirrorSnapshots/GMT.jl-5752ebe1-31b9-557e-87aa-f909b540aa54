@@ -57,7 +57,7 @@ Parameters
 - $(GMT.opt_V)
 - $(GMT.opt_f)
 """
-function grdvector(cmd0::String="", arg1=[], arg2=[]; first=true, kwargs...)
+function grdvector(cmd0::String="", arg1=nothing, arg2=nothing; first=true, kwargs...)
 
 	length(kwargs) == 0 && return monolitic("grdvector", cmd0, arg1, arg2)
 
@@ -76,21 +76,19 @@ function grdvector(cmd0::String="", arg1=[], arg2=[]; first=true, kwargs...)
 	cmd, arg1, arg2, = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_used, arg1, arg2)
 
 	cmd = add_opt_fill(cmd, d, [:G :fill], 'G')
-	cmd *= add_opt_pen(d, [:W :pen], "W")
 
-	if ((val = find_in_dict(d, [:Q :vec :vector :arrow])[1]) !== nothing)
-		if (isa(val, String))		# An hard core GMT string directly with options
-			cmd *= " -Q" * val
-		else
-			cmd *= " -Q" * vector_attrib(val)
+	if ((val = find_in_dict(d, [:Q :vec :vector :arrow], true)[1]) !== nothing)	# and delete to no be reused in :W
+		if (isa(val, String))  cmd *= " -Q" * val		# An hard core GMT string directly with options
+		else                   cmd *= " -Q" * vector_attrib(val)
 		end
 	end
+	cmd *= add_opt_pen(d, [:W :pen], "W")
 
 	cmd = finish_PS(d, cmd, output, K, O)
     return finish_PS_module(d, "grdvector " * cmd, "", output, fname_ext, opt_T, K, arg1, arg2)
 end
 
 # ---------------------------------------------------------------------------------------------------
-grdvector(arg1=[], arg2=[], cmd0::String="";  kw...) = grdvector(cmd0, arg1, arg2; first=true, kw...)
-grdvector!(cmd0::String="", arg1=[], arg2=[]; kw...) = grdvector(cmd0, arg1, arg2; first=false, kw...)
-grdvector!(arg1=[], arg2=[], cmd0::String=""; kw...) = grdvector(cmd0, arg1, arg2; first=false, kw...)
+grdvector(arg1, arg2=nothing, cmd0::String="";  kw...) = grdvector(cmd0, arg1, arg2; first=true, kw...)
+grdvector!(cmd0::String="", arg1=nothing, arg2=nothing; kw...) = grdvector(cmd0, arg1, arg2; first=false, kw...)
+grdvector!(arg1, arg2=nothing, cmd0::String=""; kw...) = grdvector(cmd0, arg1, arg2; first=false, kw...)

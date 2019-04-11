@@ -12,6 +12,8 @@ end
 
 if (got_it)					# Otherwise go straight to end
 
+	GMT.GMT_Get_Version();
+
 	# -------------------- Test common_options ----------------------------------------
 	@test GMT.parse_R("", Dict(:xlim => (1,2), :ylim => (3,4), :zlim => (5,6)))[1] == " -R1/2/3/4/5/6"
 	G1 = gmt("grdmath -R-2/2/-2/2 -I0.5 X Y MUL");
@@ -182,6 +184,7 @@ if (got_it)					# Otherwise go straight to end
 		K = gmt2kml(D, F=:l, W=(1,:red));
 		gmtwrite("lixo.kml", K)
 		kml2gmt("lixo.kml", Z=true);
+		kml2gmt(nothing, "lixo.kml", Z=true);	# yes, cheating
 		rm("lixo.kml")
 	end
 
@@ -240,6 +243,9 @@ if (got_it)					# Otherwise go straight to end
 		I = gmtread("lixo.tif", img=true, band=[0 1 2]);
 		imshow(I, show=false)			# Test this one here because we have a GMTimage at hand
 		gmtwrite("lixo.tif", mat2img(rand(UInt8,32,32,3)), driver=:GTiff)
+		@test GMT.parse_grd_format(Dict(:nan => 0)) == "+n0"
+		@test_throws ErrorException("Number of bands in the 'band' option can only be 1 or 3") GMT.gmtread("", band=[1 2])
+		@test_throws ErrorException("Format code MUST have 2 characters and not bla") GMT.parse_grd_format(Dict(:id => "bla"))
 	else
 		gmtwrite("lixo.grd", G)
 		GG = gmtread("lixo.grd", grd=true, varname=:z);
@@ -286,6 +292,7 @@ if (got_it)					# Otherwise go straight to end
 	# GRDCLIP
 	G2=grdclip(G,above="5/6", low=[2 2], between=[3 4 4.5]);	 # Use G of previous test
 	@test_throws ErrorException("Wrong number of elements in S option") G2=grdclip(G,above="5/6", low=[2], between=[3 4 4.5]);
+	@test_throws ErrorException("OPT_S: argument must be a string or a two elements array.") G2=grdclip(G,above=5, low=[2 2]);
 
 	# GRDCONTOUR
 	G = gmt("grdmath -R-15/15/-15/15 -I0.3 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");
@@ -367,7 +374,10 @@ if (got_it)					# Otherwise go straight to end
 	dzdx = gmt("grdmath ? DDX", G);
 	grdvector(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), G=:black, W="1p", S=12)
 	grdvector!(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), W="1p", S=12, Vd=:cmd)
-	grdvector!("",dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65), W="1p", S=12, Vd=:cmd)
+	r = grdvector!("",dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65), W="1p", S=12, Vd=:cmd);
+	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.65 -W1p -P")
+	r = grdvector!("", 1, 2, I=0.2, vec="0.25+e+n0.66", W=1, S=12, Vd=:cmd);
+	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.66 -W1 -P")
 
 	# GRDVOLUME
 	grdvolume(G);
@@ -416,7 +426,7 @@ if (got_it)					# Otherwise go straight to end
 	mapproject([-10 40], J=:u29, C=true, F=true);
 
 	# PLOT
-	plot(collect(1:10),rand(10), lw=1, lc="blue", fmt=:ps, marker="circle", markeredgecolor=0, size=0.2, markerfacecolor="red", title="Bla Bla", x_label="Spoons", y_label="Forks", savefig="lixo")
+	plot(collect(1:10),rand(10), lw=1, lc="blue", fmt=:ps, marker="circle", markeredgecolor=0, size=0.2, markerfacecolor="red", title="Bla Bla", xlabel="Spoons", ylabel="Forks", savefig="lixo")
 	plot(mat2ds(GMT.fakedata(6,6), x=:ny, color=[:red, :green, :blue, :yellow], ls=:dashdot), leg=true, label="Bla")
 	plot("",hcat(collect(1:10)[:],rand(10,1)))
 	plot!("",hcat(collect(1:10)[:],rand(10,1)), Vd=:cmd)
@@ -517,6 +527,7 @@ if (got_it)					# Otherwise go straight to end
 	# PROJECT
 	if (GMTver >= 6)
 		project(C="15/15", T="85/40", G="1/110", L="-20/60");	# Fails in GMT5
+		project(nothing, C="15/15", T="85/40", G="1/110", L="-20/60");	# bit of cheating
 	end
 
 	# PSBASEMAP
@@ -574,6 +585,8 @@ if (got_it)					# Otherwise go straight to end
 	@test startswith(coast(R=:g, W=(2,:green), Vd=:cmd), "pscoast  -Rg -JX12cd/0 -Baf -BWSen -W2,green")
 	r = coast(R=:g, N=((level=1,pen=(2,:green)), (level=3,pen=(4,:blue, "--"))), Vd=:cmd);
 	@test startswith(r, "pscoast  -Rg -JX12cd/0 -Baf -BWSen -N1/2,green -N3/4,blue,--")
+	r = coast(proj=:Mercator, DCW=((country="GB,IT,FR", fill=:blue, pen=(0.25,:red)), (country="ES,PT,GR", fill=:yellow)), Vd=:cmd);
+	@test startswith(r, "pscoast  -JM12c -Baf -BWSen -EGB,IT,FR+gblue+p0.25,red -EES,PT,GR+gyellow -Da")
 
 	# PSCONTOUR
 	x,y,z=GMT.peaks(grid=false);
@@ -591,6 +604,7 @@ if (got_it)					# Otherwise go straight to end
 	C = makecpt(T="-200/1000/100", C="rainbow");
 	colorbar(C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", fmt="ps", par=(MAP_FRAME_WIDTH=0.2,))
 	colorbar!("", C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
+	colorbar!(C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
 
 	# PSHISTOGRAM
 	histogram(randn(1000),W=0.1,center=true,B=:a,N=0, x_offset=1, y_offset=1, stamp=[], t=50)
