@@ -22,7 +22,7 @@ Optional Arguments
 - **A** or *annot* : *annot=annot_int* **|** *annot=(int=annot_int, disable=true, single=true, labels=labelinfo)*\
   *annot_int* is annotation interval in data units; it is ignored if contour levels are given in a file.
   [Default is no annotations]. Use *annot=(disable=true,)* to disable all annotations implied by **cont**.
-  Alternatively do *annot=(single=true, int=val)* to plot *val* as a single contour. The optional *labelinfo* controls the specifics of the label formatting and consists of the following control arguments [`Label formatting`](@ref label_format_quot)
+  Alternatively do *annot=(single=true, int=val)* to plot *val* as a single contour. The optional *labelinfo* controls the specifics of the label formatting and consists of a named tuple with the following control arguments [`Label formatting`](@ref label_format_quot)
 
 - **B** or *axis* or *frame*\
   Set map boundary frame and axes attributes. More at [axis](@ref)
@@ -101,7 +101,6 @@ Optional Arguments
   will plot the two characters (here, *L* and *H*) as labels. For more elaborate labels, separate the low and hight
   label strings with a comma (*e.g.*, *labels="lo,hi"*). If a file is given by **cont**, and **ticks** is set,
   then only contours marked with upper case C or A will have tick marks [and annotations]. 
-
 
 - **W** or *pen* : *pen=(annot=true, contour=true, pen=pen)*\
   *annot=true*, if present, means to annotate contours or *contour=true* for regular contours [Default].

@@ -123,10 +123,10 @@ end
 # ---------------------------------------------------------------------------------------------------
 function parse_JZ(cmd::String, d::Dict, del=false)
 	opt_J = ""
-	val, symb = find_in_dict(d, [:JZ :Jz])
+	val, symb = find_in_dict(d, [:JZ :Jz :zscale :zsize])
 	if (val !== nothing)
-		if (symb == :JZ)  opt_J = " -JZ" * arg2str(val)
-		else              opt_J = " -Jz" * arg2str(val)
+		if (symb == :JZ || symb == :zsize)  opt_J = " -JZ" * arg2str(val)
+		else                                opt_J = " -Jz" * arg2str(val)
 		end
 		cmd *= opt_J
 		if (del) delete!(d, symb) end
@@ -152,13 +152,8 @@ function parse_J(cmd::String, d::Dict, default="", map=true, O=false, del=false)
 	if (!O)
 		if (opt_J == "")  opt_J = " -JX"  end
 		# If only the projection but no size, try to get it from the kwargs.
-		if (haskey(d, :figsize))
-			opt_J = helper_append_figsize(d, opt_J)
-		elseif ((val = find_in_dict(d, [:figscale :scale])[1]) !== nothing)
-			val = string(val)
-			if (opt_J == " -JX")  isletter(val[1]) ? opt_J = " -J" * val : opt_J = " -Jx" * val	# FRAGILE
-			else                  opt_J = append_figsize(opt_J, val, true)
-			end
+		if ((s = helper_append_figsize(d, opt_J, O)) != "")		# Takes care of both fig scales and fig sizes
+			opt_J = s
 		elseif (default != "" && opt_J == " -JX")
 			opt_J = default  					# -JX was a working default
 		elseif (occursin("+width=", opt_J))		# OK, a proj4 string, don't touch it. Size already in.
@@ -167,18 +162,33 @@ function parse_J(cmd::String, d::Dict, default="", map=true, O=false, del=false)
 		elseif (mnemo)							# Proj name was obtained from a name mnemonic and no size. So use default
 			opt_J = append_figsize(opt_J)
 		elseif (length(opt_J) == 4 || (length(opt_J) >= 5 && isletter(opt_J[5])))
-			#if !(length(opt_J) >= 6 && isnumeric(opt_J[6]))
 			if (length(opt_J) < 6 || !isnumeric(opt_J[6]))
 				opt_J *= def_fig_size[1:3]
 			end
 		end
 	else										# For when a new size is entered in a middle of a script
-		if (haskey(d, :figsize))
-			opt_J = helper_append_figsize(d, opt_J)
-		end
+		if ((s = helper_append_figsize(d, opt_J, O)) != "")  opt_J = s  end
 	end
 	cmd *= opt_J
 	return cmd, opt_J
+end
+
+function helper_append_figsize(d, opt_J, O)
+	val, symb = find_in_dict(d, [:figscale :fig_scale :scale :figsize :fig_size])
+	if (val === nothing)  return ""  end
+	val = arg2str(val)
+	if (occursin("scale", arg2str(symb)))		# We have a fig SCALE request
+		if (opt_J == " -JX")  isletter(val[1]) ? opt_J = " -J" * val : opt_J = " -Jx" * val	# FRAGILE
+		elseif (O && opt_J == " -J")  error("In Overlay mode you cannot change a fig scale and NOT repeat the projection")
+		else                  opt_J = append_figsize(opt_J, val, true)
+		end
+	else										# A fig SIZE request
+		if (haskey(d, :units))  val *= d[:units][1]  end
+		if (occursin("+proj", opt_J)) opt_J *= "+width=" * val
+		else                          opt_J = append_figsize(opt_J, val)
+		end
+	end
+	return opt_J
 end
 
 function append_figsize(opt_J, width="", scale=false)
@@ -193,15 +203,6 @@ function append_figsize(opt_J, width="", scale=false)
 	end
 	if (scale)  opt_J = opt_J[1:3] * lowercase(opt_J[4]) * opt_J[5:end]  end 		# Turn " -JX" to " -Jx"
 	return opt_J
-end
-
-function helper_append_figsize(d, opt_J)
-	# This chunk of code is used twice, so put in a fun
-	s = arg2str(d[:figsize])
-	if (haskey(d, :units))  s *= d[:units][1]  end
-	if (occursin("+proj", opt_J)) opt_J *= "+width=" * s
-	else                          opt_J = append_figsize(opt_J, s)
-	end
 end
 
 function build_opt_J(Val)
@@ -326,7 +327,7 @@ function parse_B(cmd::String, d::Dict, opt_B::String="", del=false)
 
 	# Let the :title and x|y_label be given on main kwarg list. Risky if used with NamedTuples way.
 	t = ""		# Use the trick to replace blanks by some utf8 char and undo it in extra_parse
-	if (haskey(d, :title))   t *= "+t"  * replace(str_with_blancs(d[:title]), ' '=>'\U00AF');   end
+	if (haskey(d, :title))   t *= "+t"   * replace(str_with_blancs(d[:title]), ' '=>'\U00AF');   end
 	if (haskey(d, :xlabel))  t *= " x+l" * replace(str_with_blancs(d[:xlabel]),' '=>'\U00AF');   end
 	if (haskey(d, :ylabel))  t *= " y+l" * replace(str_with_blancs(d[:ylabel]),' '=>'\U00AF');   end
 	if (t != "")
@@ -795,16 +796,18 @@ function build_pen(d::Dict, del::Bool=false)
 end
 
 # ---------------------------------------------------------------------------------------------------
-function parse_arg_and_pen(arg::Tuple, opt="")
+function parse_arg_and_pen(arg::Tuple, sep="/", pen=true, opt="")
 	# Parse an ARG of the type (arg, (pen)) and return a string. These may be used in pscoast -I & -N
 	# OPT is the option code letter including the leading - (e.g. -I or -N). This is only used when
 	# the ARG tuple has 4, 6, etc elements (arg1,(pen), arg2,(pen), arg3,(pen), ...)
+	# When pen=false we call the get_color function instead
+	# SEP is normally "+g" when this function is used in the "parse_arg_and_color" mode
 	if (isa(arg[1], String) || isa(arg[1], Symbol) || isa(arg[1], Number))  s = string(arg[1])
 	else	error("parse_arg_and_pen: Nonsense first argument")
 	end
 	if (length(arg) > 1)
-		if (isa(arg[2], Tuple))  s *= "/" * parse_pen(arg[2])
-		else                     s *= "/" * string(arg[2])		# Whatever that is
+		if (isa(arg[2], Tuple))  s *= sep * (pen ? parse_pen(arg[2]) : get_color(arg[2])) 
+		else                     s *= sep * string(arg[2])		# Whatever that is
 		end
 	end
 	if (length(arg) >= 4) s *= " " * opt * parse_arg_and_pen((arg[3:end]))  end		# Recursive call
@@ -1050,6 +1053,42 @@ function add_opt_fill(cmd::String, d::Dict, symbs, opt="")
 end
 
 # ---------------------------------------------------------------------------------------------------
+function get_cpt_set_R(d, cmd0, cmd, opt_R, got_fname, arg1, arg2=nothing, arg3=nothing, prog="")
+	# Get CPT either from keyword input of from current_cpt.
+	# Also puts -R in cmd when accessing grids from grdimage|view|contour, etc... (due to a GMT bug that doesn't do it)
+	cpt_opt_T = ""
+	if (isa(arg1, GMTgrid))			# GMT bug, -R will not be stored in gmt.history
+		cpt_opt_T = @sprintf(" -T%f/%f/128+n", arg1.range[5], arg1.range[6])
+		if (opt_R == "")
+			cmd *= @sprintf(" -R%f/%f/%f/%f", arg1.range[1], arg1.range[2], arg1.range[3], arg1.range[4])
+		end
+	elseif (cmd0 != "")
+		info = grdinfo(cmd0 * " -C");	range = info[1].data
+		cpt_opt_T = @sprintf(" -T%.14g/%.14g/128+n", range[5], range[6])
+		if (opt_R == "")
+			cmd *= @sprintf(" -R%.14g/%.14g/%.14g/%.14g", range[1], range[2], range[3], range[4])
+		end
+	end
+
+	N_used = got_fname == 0 ? 1 : 0					# To know whether a cpt will go to arg1 or arg2
+	get_cpt = false
+	if (prog == "grdview")
+		if ((val = find_in_dict(d, [:G :drapefile])[1]) !== nothing)
+			if (isa(val, Tuple) && length(val) == 3)  cpt_opt_T = ""  end
+		end
+		get_cpt = true
+	elseif (prog == "grdimage" && (isempty_(arg3) && !occursin("-D", cmd)))
+		get_cpt = true		# This still lieve out the case when the r,g,b were sent as a text.
+	#elseif (prog == "")
+		#get_cpt = true
+	end
+	if (get_cpt)
+		cmd, arg1, arg2, = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_used, arg1, arg2, true, true, cpt_opt_T)
+	end
+	return cmd, N_used, arg1, arg2, arg3
+end
+
+# ---------------------------------------------------------------------------------------------------
 function add_opt_module(d::Dict, symbs)
 	#  SYMBS should contain a module name 'coast' or 'colorbar', and if present in D,
 	# 'val' must be a NamedTuple with the module's arguments.
@@ -1081,15 +1120,24 @@ end
 function get_color(val)
 	# Parse a color input. Always return a string
 	# color1,color2[,color3,…] colorn can be a r/g/b triplet, a color name, or an HTML hexadecimal color (e.g. #aabbcc
-	if (isa(val, String) || isa(val, Symbol) || isa(val, Number))  return string(val)  end
+	if (isa(val, String) || isa(val, Symbol) || isa(val, Number))  return isa(val, Bool) ? "" : string(val)  end
 
-	if (isa(val, Tuple) && (length(val) == 3))
-		if (val[1] <= 1 && val[2] <= 1 && val[3] <= 1)		# Assume colors components are in [0 1]
-			return @sprintf("%d/%d/%d", val[1]*255, val[2]*255, val[3]*255)
-		else
-			return @sprintf("%d/%d/%d", val[1], val[2], val[3])
+	out = ""
+	if (isa(val, Tuple))
+		for k = 1:length(val)
+			if (isa(val[k], Tuple) && (length(val[k]) == 3))
+				s = 1
+				if (val[k][1] <= 1 && val[k][2] <= 1 && val[k][3] <= 1)  s = 255  end	# colors in [0 1]
+				out *= @sprintf("%d/%d/%d,", val[k][1]*s, val[k][2]*s, val[k][3]*s)
+			elseif (isa(val[k], Symbol) || isa(val[k], String) || isa(val[k], Number))
+				out *= string(val[k],",")
+			else
+				error("Color tuples must have only one or three elements")
+			end
 		end
-	elseif (isa(val, Array) && (size(val, 2) == 3))
+		out = rstrip(out, ',')		# Strip last ','``
+	elseif ((isa(val, Array) && (size(val, 2) == 3)) || (isa(val, Vector) && length(val) == 3))
+		if (isa(val, Vector))  val = val'  end
 		if (val[1,1] <= 1 && val[1,2] <= 1 && val[1,3] <= 1)
 			copy = val .* 255		# Do not change the original
 		else
@@ -1099,10 +1147,10 @@ function get_color(val)
 		for k = 2:size(copy, 1)
 			out = @sprintf("%s,%d/%d/%d", out, copy[k,1], copy[k,2], copy[k,3])
 		end
-		return out
 	else
-		error(@sprintf("GOT_COLOR, got and unsupported data type: %s", typeof(val)))
+		error(@sprintf("GOT_COLOR, got an unsupported data type: %s", typeof(val)))
 	end
+	return out
 end
 
 # ---------------------------------------------------------------------------------------------------
