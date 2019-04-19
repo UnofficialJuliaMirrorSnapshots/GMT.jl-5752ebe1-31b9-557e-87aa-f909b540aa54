@@ -40,6 +40,7 @@ if (got_it)					# Otherwise go straight to end
 	@test GMT.build_opt_J([])[1] == " -J"
 	@test GMT.arg2str((1,2,3)) == "1/2/3"
 	@test GMT.arg2str(("aa",2,3)) == "aa/2/3"
+	@test_throws ErrorException("arg2str: argument 'arg' can only be a String, Symbol, Number, Array or a Tuple, but was DataType") GMT.arg2str(typeof(1))
 	@test GMT.parse_inc("", Dict(:inc => (x=1.5, y=2.6, unit="meter")),[:I :inc], "I") == " -I1.5e/2.6e"
 	@test GMT.parse_inc("", Dict(:inc => (x=1.5, y=2.6, unit="data")),[:I :inc], "I") == " -I1.5/2.6u"
 	@test GMT.parse_inc("", Dict(:inc => (x=1.5, y=2.6, extend="data")),[:I :inc], "I") == " -I1.5+e/2.6+e"
@@ -152,6 +153,10 @@ if (got_it)					# Otherwise go straight to end
 
 	@test_throws ErrorException("parse_arg_and_pen: Nonsense first argument") GMT.parse_arg_and_pen(([:a],0))
 	@test_throws ErrorException("GMT: No module by that name -- bla -- was found.") gmt("bla")
+	@test_throws ErrorException("grd_init: input (Int64) is not a GRID container type") GMT.grid_init(C_NULL,0,0)
+	@test_throws ErrorException("image_init: input is not a IMAGE container type") GMT.image_init(C_NULL,0,0)
+	@test_throws ErrorException("Expected a CPT structure for input") GMT.palette_init(C_NULL,0,0,0)
+	GMT.strncmp("abcd", "ab", 2)
 	# ---------------------------------------------------------------------------------------------------
 
 	gmt("begin"); gmt("end")
@@ -256,9 +261,9 @@ if (got_it)					# Otherwise go straight to end
 	cpt = makecpt(T="-6/8/1");
 	gmtwrite("lixo.cpt", cpt)
 	cpt = gmtread("lixo.cpt", cpt=true);
-	gmtwrite("lixo.dat", [1 2; 3 4])
-	D = gmtread("lixo.dat", table=true);
-	@test(sum(D[1].data) == 10)
+	gmtwrite("lixo.dat", [1 2 10; 3 4 20])
+	D = gmtread("lixo.dat", i="0,1s10", table=true);
+	@test(sum(D[1].data) == 64.0)
 	gmtwrite("lixo.dat", D)
 	gmt("gmtwrite lixo.cpt", cpt)		# Same but tests other code chunk in gmt_main.jl
 	gmt("gmtwrite lixo.dat", D)
@@ -309,10 +314,10 @@ if (got_it)					# Otherwise go straight to end
 	GG = gmt("read -Tg lixo.grd");
 	C = grdcontour("lixo.grd", C="+0.7", D=[]);
 	@assert((size(C[1].data,1) == 21) && norm(-0.6 - C[1].data[1,1]) < 1e-8)
-	r = grdcontour("bla", cont=10, A=(int=50,labels=(font=7,)), G=(dist="4i",), L=(-1000,-1), W=((contour=1,pen="thinnest,-"), (annot=1, pen="thin,-")), T=(gap=("0.1i","0.02i"),), Vd=:cmd);
-	@test startswith(r, "grdcontour bla  -JX12c/0 -Baf -BWSen -L-1000/-1 -A50+f7 -Gd4i -T+d0.1i/0.02i -Wcthinnest,- -Wathin,- -C10")
-	r = grdcontour("bla", A="50+f7p", G="d4i", W=((contour=1,pen="thinnest,-"), (annot=1, pen="thin,-")), Vd=:cmd);
-	@test startswith(r, "grdcontour bla  -JX12c/0 -Baf -BWSen -A50+f7p -Gd4i -Wcthinnest,- -Wathin,-")
+	r = grdcontour("lixo.grd", cont=10, A=(int=50,labels=(font=7,)), G=(dist="4i",), L=(-1000,-1), W=((contour=1,pen="thinnest,-"), (annot=1, pen="thin,-")), T=(gap=("0.1i","0.02i"),), Vd=:cmd);
+	@test startswith(r, "grdcontour lixo.grd  -JX12c/0 -Baf -BWSen -L-1000/-1 -A50+f7 -Gd4i -T+d0.1i/0.02i -Wcthinnest,- -Wathin,- -C10")
+	r = grdcontour("lixo.grd", A="50+f7p", G="d4i", W=((contour=1,pen="thinnest,-"), (annot=1, pen="thin,-")), Vd=:cmd);
+	@test startswith(r, "grdcontour lixo.grd  -JX12c/0 -Baf -BWSen -A50+f7p -Gd4i -Wcthinnest,- -Wathin,-")
 	G = GMT.peaks()
 	cpt = makecpt(T="-6/8/1");
 	if (GMTver >= 6)
@@ -400,7 +405,10 @@ if (got_it)					# Otherwise go straight to end
 	grdimage(rand(Float32, 128, 128), shade=(default=30,), coast=(W=1,), Vd=:cmd)
 	grdimage(rand(Float32, 128, 128), colorbar=(color=:rainbow, pos=(anchor=:RM,length=8)), Vd=:cmd)
 	grdimage("lixo.grd", coast=true, colorbar=true, Vd=:cmd)
-	#grdimage("@earth_relief_05m", J="S21/90/15c", R="10/68/50/80r", B=:afg, X=:c, I="+")
+	G = gmt("grdmath -Rg -fg -I5 X");
+	gmtwrite("lixo.grd", G)
+	grdimage("lixo.grd", proj=:Winkel, colorbar=true, coast=true)
+	#grdimage(G, proj=:Winkel, colorbar=true, coast=true)		# Fails because CPT is in arg2 and psscale expects it in arg1
 	PS = grdview(G, J="X6i", JZ=5,  I=45, Q="s", C="topo", R="-15/15/-15/15/-1/1", view="120/30", ps=1);
 	gmt("destroy")
 	grdview!("",G, J="X6i", JZ=5, I=45, Q="s", C="topo", R="-15/15/-15/15/-1/1", view="120/30", Vd=:cmd);
@@ -410,7 +418,10 @@ if (got_it)					# Otherwise go straight to end
 	@test startswith(r, "grdview  -R -J -N-6+glightgray -Qsmred")
 	@test_throws ErrorException("Wrong way of setting the drape (G) option.")  grdview(rand(16,16), G=(1,2))
 	if (GMTver >= 6)		# Crashes GMT5
-		grdview(rand(128,128), G=(Gr,Gg,Gb), I=mat2grid(rand(Float32,128,128)), J=:X12, JZ=5, Q=:i, view="145/30")
+		I = mat2grid(rand(Float32,128,128))
+		grdview(rand(128,128), G=(Gr,Gg,Gb), I=I, J=:X12, JZ=5, Q=:i, view="145/30")
+		gmtwrite("lixo.grd", I)
+		grdview(rand(128,128), G=I, I=I, J=:X12, JZ=5, Q=:i, view="145/30")
 	end
 
 	# GREENSPLINE
@@ -615,6 +626,8 @@ if (got_it)					# Otherwise go straight to end
 	colorbar(C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", fmt="ps", par=(MAP_FRAME_WIDTH=0.2,))
 	colorbar!("", C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
 	colorbar!(C=C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
+	colorbar(C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
+	colorbar!(C, D="x8c/1c+w12c/0.5c+jTC+h", B="xaf+l\"topography\" y+lkm", Vd=:cmd)
 
 	# PSHISTOGRAM
 	histogram(randn(1000),W=0.1,center=true,B=:a,N=0, x_offset=1, y_offset=1, stamp=[], t=50)
@@ -773,6 +786,7 @@ if (got_it)					# Otherwise go straight to end
 	GMT.meshgrid(1:5, 1:5, 1:5);
 	fields(7);
 	tic();toc()
+	@test_throws ErrorException("`toc()` without `tic()`") toc()
 
 	# EXAMPLES
 	plot(1:10,rand(10), lw=1, lc="blue", marker="square",
@@ -799,5 +813,6 @@ if (got_it)					# Otherwise go straight to end
 	rm("lixo.tif")
 	rm("lixo.cpt")
 	rm("lixo.dat")
+	#@static if (Sys.iswindows())  run(`rmdir /S /Q NULL`)  end
 
 end					# End valid testing zone

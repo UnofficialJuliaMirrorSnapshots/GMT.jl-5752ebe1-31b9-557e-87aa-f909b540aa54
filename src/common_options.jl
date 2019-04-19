@@ -643,8 +643,8 @@ function parse_inc(cmd::String, d::Dict, symbs, opt, del=false)
 	# At the end we must recreate this syntax: xinc[unit][+e|n][/yinc[unit][+e|n]] or
 	if ((val = find_in_dict(d, symbs, del)[1]) !== nothing)
 		if (isa(val, NamedTuple))
-			fn = fieldnames(typeof(val))
 			x = "";	y = "";	u = "";	e = false
+			fn = fieldnames(typeof(val))
 			for k = 1:length(fn)
 				if     (fn[k] == :x)     x  = string(val[k])
 				elseif (fn[k] == :y)     y  = string(val[k])
@@ -718,8 +718,11 @@ function add_opt_pen(d::Dict, symbs, opt="", del::Bool=false)
 	end
 
 	# Some -W take extra options to indicate that color comes from CPT
-	if (haskey(d, :cline))  out *= "+cl"  end
-	if (haskey(d, :ctext) || haskey(d, :csymbol))  out *= "+cf"  end
+	if (haskey(d, :colored))  out *= "+c"
+	else
+		if (haskey(d, :cline))  out *= "+cl"  end
+		if (haskey(d, :ctext) || haskey(d, :csymbol))  out *= "+cf"  end
+	end
 	if (haskey(d, :bezier))  out *= "+s"  end
 	if (haskey(d, :offset))  out *= "+o" * arg2str(d[:offset])   end
 
@@ -830,8 +833,7 @@ function arg2str(arg)
 	elseif (isa(arg, Tuple) && isa(arg[1], String))		# Maybe better than above but misses nice %.xxg
 		out = join(arg,'/')
 	else
-		error(@sprintf("arg2str: argument 'arg' can only be a String, Symbol, Number, Array or a Tuple,
-		                but was %s", typeof(arg)))
+		error(@sprintf("arg2str: argument 'arg' can only be a String, Symbol, Number, Array or a Tuple, but was %s", typeof(arg)))
 	end
 end
 
@@ -992,13 +994,16 @@ function add_opt(nt::NamedTuple, mapa::NamedTuple, arg=nothing)
 end
 
 # ---------------------------------------------------------------------------------------------------
-function add_opt_cpt(d::Dict, cmd::String, symbs, opt::Char, N_args=0, arg1=nothing, arg2=nothing, store=false, def=false, opt_T="")
+function add_opt_cpt(d::Dict, cmd::String, symbs, opt::Char, N_args=0, arg1=nothing, arg2=nothing,
+	                 store=false, def=false, opt_T="", in_bag=false)
 	# Deal with options of the form -Ccolor, where color can be a string or a GMTcpt type
+	# SYMBS is normally: [:C :color :cmap]
 	# N_args only applyies to when a GMTcpt was transmitted. Than it's either 0, case in which
 	# the cpt is put in arg1, or 1 and the cpt goes to arg2.
 	# STORE, when true, will save the cpt in the global state
 	# DEF, when true, means to use the default cpt (Jet)
 	# OPT_T, when != "", contains a min/max/n_slices/+n string to calculate a cpt with n_slices colors between [min max]
+	# IN_BAG, if true means that, if not empty, we return the contents of `current_cpt`
 	if ((val = find_in_dict(d, symbs)[1]) !== nothing)
 		if (isa(val, GMT.GMTcpt))
 			if (N_args > 1)  error("Can't send the CPT data via option AND input array")  end
@@ -1011,12 +1016,18 @@ function add_opt_cpt(d::Dict, cmd::String, symbs, opt::Char, N_args=0, arg1=noth
 				cmd *= " -" * opt * get_color(val)
 			end
 		end
-	elseif (def && opt_T != "")			# Requested the use of the default color map (here Jet, instead of rainbow)
+	elseif (def && opt_T != "")		# Requested the use of the default color map (here Jet, instead of rainbow)
 		cpt = makecpt(opt_T * " -Cjet")
 		cmd, arg1, arg2, N_args = helper_add_cpt(cmd, opt, N_args, arg1, arg2, cpt, store)
+	elseif (in_bag)					# If everything else has failed and we have one in the Bag, return it
+		global current_cpt
+		if (current_cpt !== nothing)
+			cmd, arg1, arg2, N_args = helper_add_cpt(cmd, opt, N_args, arg1, arg2, current_cpt, false)
+		end
 	end
 	return cmd, arg1, arg2, N_args
 end
+# ---------------------
 function helper_add_cpt(cmd, opt, N_args, arg1, arg2, val, store)
 	# Helper function to avoid repeating 3 times the same code in add_opt_cpt
 	(N_args == 0) ? arg1 = val : arg2 = val;	N_args += 1
@@ -1056,34 +1067,39 @@ end
 function get_cpt_set_R(d, cmd0, cmd, opt_R, got_fname, arg1, arg2=nothing, arg3=nothing, prog="")
 	# Get CPT either from keyword input of from current_cpt.
 	# Also puts -R in cmd when accessing grids from grdimage|view|contour, etc... (due to a GMT bug that doesn't do it)
+	global current_cpt
 	cpt_opt_T = ""
 	if (isa(arg1, GMTgrid))			# GMT bug, -R will not be stored in gmt.history
-		cpt_opt_T = @sprintf(" -T%f/%f/128+n", arg1.range[5], arg1.range[6])
-		if (opt_R == "")
-			cmd *= @sprintf(" -R%f/%f/%f/%f", arg1.range[1], arg1.range[2], arg1.range[3], arg1.range[4])
-		end
+		range = arg1.range
 	elseif (cmd0 != "")
 		info = grdinfo(cmd0 * " -C");	range = info[1].data
-		cpt_opt_T = @sprintf(" -T%.14g/%.14g/128+n", range[5], range[6])
+	end
+	if (isa(arg1, GMTgrid) || cmd0 != "")
+		if (current_cpt === nothing)	# Then compute (later) a default cpt
+			cpt_opt_T = @sprintf(" -T%.14g/%.14g/128+n", range[5], range[6])
+		end
 		if (opt_R == "")
 			cmd *= @sprintf(" -R%.14g/%.14g/%.14g/%.14g", range[1], range[2], range[3], range[4])
 		end
 	end
 
 	N_used = got_fname == 0 ? 1 : 0					# To know whether a cpt will go to arg1 or arg2
-	get_cpt = false
+	get_cpt = false;	in_bag = true;		# IN_BAG means seek if current_cpt != nothing and return it
 	if (prog == "grdview")
-		if ((val = find_in_dict(d, [:G :drapefile])[1]) !== nothing)
-			if (isa(val, Tuple) && length(val) == 3)  cpt_opt_T = ""  end
-		end
 		get_cpt = true
+		if ((val = find_in_dict(d, [:G :drapefile])[1]) !== nothing)
+			if (isa(val, Tuple) && length(val) == 3)  get_cpt = false  end	# Playing safe
+		end
 	elseif (prog == "grdimage" && (isempty_(arg3) && !occursin("-D", cmd)))
 		get_cpt = true		# This still lieve out the case when the r,g,b were sent as a text.
-	#elseif (prog == "")
+	elseif (prog == "grdcontour")	# Here C means Contours but we cheat, so always check if C, color, ... is present
+		get_cpt = true;		cpt_opt_T = ""		# This is hell. And what if I want to auto generate a cpt?
+		if (!occursin("+c", cmd))  in_bag = false  end
+	#elseif (prog == "" && current_cpt !== nothing)		# Not yet used
 		#get_cpt = true
 	end
 	if (get_cpt)
-		cmd, arg1, arg2, = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_used, arg1, arg2, true, true, cpt_opt_T)
+		cmd, arg1, arg2, = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_used, arg1, arg2, true, true, cpt_opt_T, in_bag)
 	end
 	return cmd, N_used, arg1, arg2, arg3
 end
@@ -1741,31 +1757,25 @@ function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", opt_bi=
 	# Also compute a tight -R if this was not provided
 	data_kw = nothing
 	if (haskey(d, :data))	data_kw = d[:data]	end
-
-	ins = sum([data_kw !== nothing !isempty_(arg) !isempty(fname)])
-	if (ins > 1)
-		@warn("Conflicting ways of providing input data. Either a file name via positional and
-		a data array via keyword args were provided or numeric input. Unknown effect of this.")
-	end
-
 	if (fname != "")	data_kw = fname		end
 
+	lix, opt_h  = parse_h("", d)		# Experimentally, put the header test here
 	if (isa(data_kw, String))
 		if (GMTver >= 6)				# Due to a bug in GMT5, gmtread has no -i option
-			data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * " " * data_kw)
+			data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * opt_h * " " * data_kw)
 			if (!isempty(opt_i))		# Remove the -i option from cmd. It has done its job
-				cmd = replace(cmd, opt_i, "")
+				cmd = replace(cmd, opt_i => "")
 				opt_i = ""
 			end
 		else
-			data_kw = gmt("read -Td " * opt_bi * opt_di * " " * data_kw)
+			data_kw = gmt("read -Td " * opt_bi * opt_di * opt_h * " " * data_kw)
 		end
 	end
 
 	if (!isempty_(data_kw)) arg = data_kw  end		# Finaly move the data into ARG
 
 	if (opt_R == "" || opt_R[1] == '/')
-		info = gmt("gmtinfo -C" * opt_i, arg)		# Here we are reading from an original GMTdataset or Array
+		info = gmt("gmtinfo -C" * opt_i * opt_h, arg)		# Here we are reading from an original GMTdataset or Array
 		if (opt_R != "" && opt_R[1] == '/')	# Modify what will be reported as a -R string
 			# Example "/-0.1/0.1/0//" will extend x axis +/- 0.1, set y_min=0 and no change to y_max
 			rs = split(opt_R, '/')
@@ -1923,10 +1933,8 @@ function common_grd(d::Dict, cmd::String, got_fname::Int, tipo::Int, args...)
 	# This chunk of code is shared by several grdxxx modules, so wrap it in a function
 	dbg_print_cmd(d, cmd)
 	if (tipo == 1)				# One input only
-		if (got_fname != 0)
-			return gmt(cmd)
-		else
-			return gmt(cmd, args[1])
+		if (got_fname != 0)  return gmt(cmd)
+		else                 return gmt(cmd, args[1])
 		end
 	elseif (tipo == 2)			# Two inputs
 		if (got_fname == 1)
@@ -1963,6 +1971,7 @@ function showfig(d::Dict, fname_ps::String, fname_ext::String, opt_T::String, K=
 	# OPT_T holds the psconvert -T option, again when not PS
 	# FNAME is for when using the savefig option
 
+	global current_cpt = nothing		# Always reset to empty when fig is finalized
 	if (opt_T != "")
 		if (K) gmt("psxy -T -R0/1/0/1 -JX1 -O >> " * fname_ps)  end		# Close the PS file first
 		gmt("psconvert -A1p -Qg4 -Qt4 " * fname_ps * opt_T)
@@ -1974,14 +1983,6 @@ function showfig(d::Dict, fname_ps::String, fname_ext::String, opt_T::String, K=
 		out = fname_ps
 		if (fname != "")
 			out = mv(out, fname, force=true)
-		end
-	else
-		if (K)  gmt("psxy -T -R0/1/0/1 -JX1 -O ")  end		# Close the PS file first
-		if (fname_ext == "")
-			return gmt("psconvert = -A1p")					# Return a GMTimage object
-		else
-			out = tempdir() * "GMTjl_tmp.pdf"
-			gmt("psconvert = -A1p -Tf -F" * out)
 		end
 	end
 
@@ -2054,7 +2055,7 @@ function finish_PS_module(d::Dict, cmd, opt_extra::String, output::String, fname
 	if (haskey(d, :savefig))		# Also ensure that file has the right extension
 		fname, ext = splitext(d[:savefig])
 		if (fname_ext != "")  fname *= '.' * fname_ext
-		else                  fname *= ext			# PS, otherwise shit had happened
+		else                  fname *= ext		# PS, otherwise shit had happened
 		end
 	end
 
@@ -2229,9 +2230,6 @@ function monolitic(prog::String, cmd0::String, args...)
 	# Run this module in the monolithic way. e.g. [outs] = gmt("module args",[inputs])
 	cmd0 = prog * " " * cmd0
 	return gmt(cmd0, args...)
-	#if (isempty_(args))	return gmt(cmd0)
-	#else				return gmt(cmd0, args...)
-	#end
 end
 
 # --------------------------------------------------------------------------------------------------
