@@ -1,12 +1,14 @@
 # bar3
 
-	bar3(cmd0::String="", arg1=[]; kwargs...)
+	bar3(cmd0::String="", arg1=nothing; kwargs...)
 
 Plots a 3D bar graph. The input can either be a file name of a file with at least three columns (x,y,z),
 but optionally more, a GMTdatset object with also three or more columns. However, the simplest usage is
 to provide a grid object (a GMTgrid) or a MxN matrix (with M,N > 3) and accept the defaults set for these
 data types. When `not` using grids or matrices the *width* keyword (see below) is mandatory, unless both
-`xsize` and `ysize` are given as two extra data columns.
+`xsize` and `ysize` are given as two extra data columns. When using file names, however, it is necessary
+to tell the program if it is going to read a grid or a table. That is achieved by using ``grd=true`` or
+``dataset=true``, respectively.
 
 This module is a subset of `plot` to make it simpler to draw 3D bar plots. So not all (fine)
 controlling parameters are listed here. For a finer control, user should consult the `plot` module.
@@ -61,18 +63,20 @@ Parameters
      - *bar=(width=xx,unit=xx,base=xx,height=xx,nbands=xx)*  (or *Nbands=xx* for last element)
 
 - **p** or *view*\
-   Default is viewpoint` from an azimuth of 200 and elevation of 30 degrees.\
+   Default is viewpoint from an azimuth of 200 and elevation of 30 degrees.\
    Specify the viewpoint in terms of azimuth and elevation. The azimuth is the horizontal rotation about the z-axis as measured in degrees from the positive y-axis. That is, from North. This option is not yet fully
    expanded. Current alternatives are:
      - *view=??*\
         A full GMT compact string with the full set of options.
      - *view=(azim,elev)*\
         A two elements tuple with azimuth and elevation
+     - *view=true*\
+        To propagate the viewpoint used in a previous module (makes sense only in ``bar3!``)
 
 Examples
 --------
 
-A simple scatter of ten points plotted as red circles of 7 points size
+View a grid as a 3D bar plot
 
 ```julia
 G = gmt("grdmath -R-15/15/-15/15 -I0.5 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");

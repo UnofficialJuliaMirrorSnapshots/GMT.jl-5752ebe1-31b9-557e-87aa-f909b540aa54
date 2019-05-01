@@ -77,33 +77,45 @@ function text(cmd0::String="", arg1=nothing; first=true, kwargs...)
 
 	length(kwargs) == 0 && return monolitic("pstext", cmd0, arg1)
 
-	arg2 = nothing		# May be needed if GMTcpt type is sent in via G
 	N_args = isempty_(arg1) ? 0 : 1
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12c/0")
-	cmd, opt_bi = parse_bi(cmd, d)
-	cmd, opt_di = parse_di(cmd, d)
-	cmd = parse_common_opts(d, cmd, [:e :f :p :t :yx :JZ :UVXY :params])
+	cmd = parse_common_opts(d, cmd, [:e :f :p :t :yx :JZ :UVXY :params], first)
 	cmd = parse_these_opts(cmd, d, [[:A :horizontal], [:C :clearance], [:L :list], [:M :paragraph],
 	                 [:N :noclip :no_clip], [:Q :change_case], [:T :text_box], [:Z :threeD]])
 
-	# If file name sent in, read it and compute a tight -R if this was not provided 
-	cmd, arg1, opt_R, = read_data(d, cmd0, cmd, arg1, opt_R, "", opt_bi, opt_di)
-	cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color], 'C', N_args, arg1, arg2)
+	# If file name sent in, read it and compute a tight -R if this was not provided
+	cmd, arg1, opt_R, = read_data(d, cmd0, cmd, arg1, opt_R)
+	if (isa(arg1, Array{<:Number}))
+		arg1 = [GMTdataset(arg1, Array{String,1}(), "", Array{String,1}(), "", "")]
+	end
 
-	cmd = add_opt(cmd, 'D', d, [:D :offset], (shift="", line="+v", pen=("",add_opt_pen)) )
+	# Here we must test if the GMTdataset has text or if a numeric column is to be used as such
+	if ((isa(arg1, GMTdataset) && isempty(arg1.text)) || (isa(arg1, Array{GMT.GMTdataset,1}) && isempty(arg1[1].text)) )
+		if (isa(arg1, GMTdataset))  arg1 = [arg1]  end
+		for n = 1:length(arg1)
+			nr, nc = size(arg1[n].data)
+			if (nc < 3)  error("TEXT: input file must have at least three columns")  end
+			arg1[n].text = Array{String,1}(undef, nr)
+			for k = 1:nr
+				arg1[n].text[k] = @sprintf("%.16g", arg1[n].data[k,3])
+			end
+		end
+	end
+
+	cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color], 'C', N_args, arg1)
+
+	cmd = add_opt(cmd, 'D', d, [:D :offset], (shift="", line="+v", pen=("",add_opt_pen)), true)
 	cmd = add_opt(cmd, 'F', d, [:F :attrib],
 		(angle="+a", font=("+f", font), justify="+j", region_justify="+c", header="+h", label="+l",
-		rec_number="+r", text="+t", zvalues="+z"))
+		rec_number="+r", text="+t", zvalues="+z"), false, true)
 	cmd = add_opt_fill(cmd, d, [:G :fill], 'G')
 	cmd *= add_opt_pen(d, [:W :pen], "W")
 
-	cmd = finish_PS(d, cmd, output, K, O)
-	r = finish_PS_module(d, "pstext " * cmd, "", output, fname_ext, opt_T, K, arg1, arg2)
+	r = finish_PS_module(d, "pstext " * cmd, "", output, fname_ext, opt_T, K, O, true, arg1, arg2)
 	gmt("destroy")
 	return r
 end

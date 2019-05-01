@@ -5,8 +5,7 @@ const psxyz! = plot3d!
 
 # ---------------------------------------------------------------------------------------------------
 function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
-	arg2 = nothing		# May be needed if GMTcpt type is sent in via C
-	N_args = isempty_(arg1) ? 0 : 1
+	N_args = (arg1 === nothing) ? 0 : 1
 
 	is_ternary = (caller == "ternary") ? true : false
 	if (is3D)	        gmt_proggy = "psxyz "
@@ -34,7 +33,7 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 	end
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
 	if (!occursin("-J", cmd))			# bar, bar3 and others may send in a -J
 		opt_J = " -JX" * def_fig_size
@@ -51,22 +50,16 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 		opt_J = ""
 	end
 
-	K, O = set_KO(first)				# Set the K O dance
-
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, cmd, caller, O, opt_J)
 	if (is3D)	cmd,opt_JZ = parse_JZ(cmd, d)	end
-	cmd, opt_bi = parse_bi(cmd, d)
-	cmd, opt_di = parse_di(cmd, d)
-	#cmd, opt_h  = parse_h(cmd, d)
-	cmd, opt_i  = parse_i(cmd, d)
-	cmd = parse_common_opts(d, cmd, [:a :e :f :g :h :p :t :yx :params])
+	cmd = parse_common_opts(d, cmd, [:a :e :f :g :p :t :yx :params], first)
 	cmd = parse_these_opts(cmd, d, [[:D :shift :offset], [:F :conn :connection], [:I :intens], [:N :noclip :no_clip]])
 	if (is_ternary)  cmd = add_opt(cmd, 'M', d, [:M :no_plot])  end
 	opt_UVXY = parse_UVXY("", d)	# Need it separate to not risk to double include it.
 
 	# If a file name sent in, read it and compute a tight -R if this was not provided
 	if (opt_R == "" && sub_module == "bar")  opt_R = "///0"  end	# Make sure y_min = 0
-	cmd, arg1, opt_R, opt_i = read_data(d, cmd0, cmd, arg1, opt_R, opt_i, opt_bi, opt_di, is3D)
+	cmd, arg1, opt_R, opt_i = read_data(d, cmd0, cmd, arg1, opt_R, is3D)
 	
 	if (is3D && isempty(opt_JZ) && length(collect(eachmatch(r"/", opt_R))) == 5)
 		cmd *= " -JZ6c"		# Default -JZ
@@ -86,7 +79,8 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 
 	# Look for color request. Do it after error bars because they may add a column
 	len = length(cmd);	n_prev = N_args;
-	cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_args, arg1, arg2)
+	cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_args, arg1)
+	#cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_args, arg1, nothing, true, true, "", true)
 
 	# See if we got a CPT. If yes there may be some work to do if no color column provided in input data.
 	cmd, arg1, arg2, N_args, mcc = make_color_column(d, cmd, opt_i, len, N_args, n_prev, is3D, arg1, arg2)
@@ -165,9 +159,7 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 		cmd = finish_PS(d, cmd * opt_W * opt_UVXY, output, K, O)
 
 	elseif (opt_W == "" && opt_S != "")						# We have a symbol request
-		if (opt_Wmarker != "" && opt_W == "")
-			opt_Gsymb *= " -W" * opt_Wmarker				# Piggy back in this option string
-		end
+		if (opt_Wmarker != "" && opt_W == "") opt_Gsymb *= " -W" * opt_Wmarker  end		# reuse var name
 		if (opt_ML != "")  cmd *= opt_ML  end				# If we have a symbol outline pen
 		cmd = finish_PS(d, cmd * opt_S * opt_Gsymb * opt_UVXY, output, K, O)
 
@@ -176,14 +168,11 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 		if (opt_S[4] == 'v' || opt_S[4] == 'V' || opt_S[4] == '=')
 			cmd = finish_PS(d, cmd * opt_W * opt_S * opt_Gsymb * opt_UVXY, output, K, O)
 		else
-			if (opt_Wmarker != "")
-				opt_Wmarker = " -W" * opt_Wmarker			# Set Symbol edge color 
-			end
+			if (opt_Wmarker != "")  opt_Wmarker = " -W" * opt_Wmarker  end		# Set Symbol edge color 
 			cmd1 = cmd * opt_W * opt_UVXY
 			cmd2 = replace(cmd, opt_B => "") * opt_S * opt_Gsymb * opt_Wmarker	# Don't repeat option -B
 			if (opt_ML != "")  cmd1 = cmd1 * opt_ML  end	# If we have a symbol outline pen
-			cmd = [finish_PS(d, cmd1, output, true, O)
-			       finish_PS(d, cmd2, output, K, true)]
+			cmd = [finish_PS(d, cmd1, output, true, O); finish_PS(d, cmd2, output, K, true)]
 		end
 
 	elseif (opt_S != "" && opt_ML != "")					# We have a symbol outline pen
@@ -210,7 +199,7 @@ function common_plot_xyz(cmd0, arg1, caller, first, is3D, kwargs...)
 
 	put_in_legend_bag(d, cmd, arg1)
 
-	r = finish_PS_module(d, gmt_proggy .* cmd, "", output, fname_ext, opt_T, K, arg1, arg2)
+	r = finish_PS_module(d, gmt_proggy .* cmd, "", output, fname_ext, opt_T, K, O, false, arg1, arg2)
 	if (got_pattern)  gmt("destroy")  end 	# Apparently patterns are screweing the session
 	return r
 end
@@ -376,11 +365,12 @@ function check_caller(d::Dict, cmd::String, opt_S::String, caller::String, O::Bo
 end
 
 # ---------------------------------------------------------------------------------------------------
-function parse_bar_cmd(d::Dict, key::Symbol, cmd::String, optS::String)
+function parse_bar_cmd(d::Dict, key::Symbol, cmd::String, optS::String, no_u=false)
 	# Deal with parsing the 'bar' & 'hbar' keywors of psxy. Also called by plot/bar3. For this
 	# later module if input is not a string or NamedTuple the scatter options must be processed in bar3().
 	# KEY is either :bar or :hbar
 	# OPTS is either "Sb", "SB" or "So"
+	# NO_U if true means to NO automatic adding of flag 'u'
 	opt =""
 	if (haskey(d, key))
 		if (isa(d[key], String))
@@ -393,11 +383,12 @@ function parse_bar_cmd(d::Dict, key::Symbol, cmd::String, optS::String)
 	end
 
 	if (opt != "")				# Still need to finish parsing this
+		flag_u = no_u ? "" : 'u' 
 		if ((ind = findfirst("+", opt)) !== nothing)	# See if need to insert a 'u'
-			if (!isletter(opt[ind[1]-1]))  opt = opt[1:ind[1]-1] * 'u' * opt[ind[1]:end]  end
+			if (!isletter(opt[ind[1]-1]))  opt = opt[1:ind[1]-1] * flag_u * opt[ind[1]:end]  end
 		else
 			pb = (optS != "So") ? "+b0" : ""		# The default for bar3 (So) is set in the bar3() fun
-			if (!isletter(opt[end]))  opt *= 'u' * pb	# No base set so default to ...
+			if (!isletter(opt[end]))  opt *= flag_u * pb	# No base set so default to ...
 			else                      opt *= pb
 			end
 		end

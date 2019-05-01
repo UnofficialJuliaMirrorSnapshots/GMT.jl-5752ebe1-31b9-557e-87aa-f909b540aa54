@@ -431,6 +431,12 @@ function parse_BJR(d::Dict, cmd::String, caller, O, default, del=false)
 end
 
 # ---------------------------------------------------------------------------------------------------
+function parse_F(cmd::String, d::Dict)
+	cmd = add_opt(cmd, 'F', d, [:F :box], (clearance="+c", fill=("+g", add_opt_fill), inner="+i",
+	                                       pen=("+p", add_opt_pen), rounded="+r", shaded="+s"))
+end
+
+# ---------------------------------------------------------------------------------------------------
 function parse_UXY(cmd::String, d::Dict, aliases, opt::Char)
 	# Parse the global -U, -X, -Y options. Return CMD same as input if no option OPT in args
 	# ALIASES: [:X :x_off :x_offset] (same for Y) or [:U :time_stamp :stamp]
@@ -470,91 +476,91 @@ end
 # ---------------------------------------------------------------------------------------------------
 function parse_a(cmd::String, d::Dict)
 	# Parse the global -a option. Return CMD same as input if no -a option in args
-	return parse_helper(cmd, d, [:a :aspatial], " -a")
+	parse_helper(cmd, d, [:a :aspatial], " -a")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_b(cmd::String, d::Dict)
 	# Parse the global -b option. Return CMD same as input if no -b option in args
-	return parse_helper(cmd, d, [:b :binary], " -b")
+	parse_helper(cmd, d, [:b :binary], " -b")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_bi(cmd::String, d::Dict)
 	# Parse the global -bi option. Return CMD same as input if no -bi option in args
-	return parse_helper(cmd, d, [:bi :binary_in], " -bi")
+	parse_helper(cmd, d, [:bi :binary_in], " -bi")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_bo(cmd::String, d::Dict)
 	# Parse the global -bo option. Return CMD same as input if no -bo option in args
-	return parse_helper(cmd, d, [:bo :binary_out], " -bo")
+	parse_helper(cmd, d, [:bo :binary_out], " -bo")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_d(cmd::String, d::Dict)
 	# Parse the global -di option. Return CMD same as input if no -di option in args
-	return parse_helper(cmd, d, [:d :nodata], " -d")
+	parse_helper(cmd, d, [:d :nodata], " -d")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_di(cmd::String, d::Dict)
 	# Parse the global -di option. Return CMD same as input if no -di option in args
-	return parse_helper(cmd, d, [:di :nodata_in], " -di")
+	parse_helper(cmd, d, [:di :nodata_in], " -di")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_do(cmd::String, d::Dict)
 	# Parse the global -do option. Return CMD same as input if no -do option in args
-	return parse_helper(cmd, d, [:do :nodata_out], " -do")
+	parse_helper(cmd, d, [:do :nodata_out], " -do")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_e(cmd::String, d::Dict)
 	# Parse the global -e option. Return CMD same as input if no -e option in args
-	return parse_helper(cmd, d, [:e :pattern], " -e")
+	parse_helper(cmd, d, [:e :pattern], " -e")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_f(cmd::String, d::Dict)
 	# Parse the global -f option. Return CMD same as input if no -f option in args
-	return parse_helper(cmd, d, [:f :colinfo], " -f")
+	parse_helper(cmd, d, [:f :colinfo], " -f")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_g(cmd::String, d::Dict)
 	# Parse the global -g option. Return CMD same as input if no -g option in args
-	return parse_helper(cmd, d, [:g :gaps], " -g")
+	parse_helper(cmd, d, [:g :gaps], " -g")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_h(cmd::String, d::Dict)
 	# Parse the global -h option. Return CMD same as input if no -h option in args
-	return parse_helper(cmd, d, [:h :header], " -h")
+	parse_helper(cmd, d, [:h :header], " -h")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_i(cmd::String, d::Dict)
 	# Parse the global -i option. Return CMD same as input if no -i option in args
-	return parse_helper(cmd, d, [:i :incol], " -i")
+	parse_helper(cmd, d, [:i :incol], " -i")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_n(cmd::String, d::Dict)
 	# Parse the global -n option. Return CMD same as input if no -n option in args
-	return parse_helper(cmd, d, [:n :interp :interpol], " -n")
+	parse_helper(cmd, d, [:n :interp :interpol], " -n")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_o(cmd::String, d::Dict)
 	# Parse the global -o option. Return CMD same as input if no -o option in args
-	return parse_helper(cmd, d, [:o :outcol], " -o")
+	parse_helper(cmd, d, [:o :outcol], " -o")
 end
 
 # ---------------------------------------------------------------------------------------------------
 function parse_p(cmd::String, d::Dict)
 	# Parse the global -p option. Return CMD same as input if no -p option in args
-	return parse_helper(cmd, d, [:p :view :perspective], " -p")
+	parse_helper(cmd, d, [:p :view :perspective], " -p")
 end
 
 # ---------------------------------------------------------------------------------------------------
@@ -569,7 +575,7 @@ parse_swap_xy(cmd::String, d::Dict) = parse_helper(cmd, d, [:swap_xy :xy :yx], "
 # ---------------------------------------------------------------------------------------------------
 function parse_r(cmd::String, d::Dict)
 	# Parse the global -r option. Return CMD same as input if no -r option in args
-	return parse_helper(cmd, d, [:r :reg :registration], " -r")
+	parse_helper(cmd, d, [:r :reg :registration], " -r")
 end
 
 # ---------------------------------------------------------------------------------------------------
@@ -579,7 +585,7 @@ parse_x(cmd::String, d::Dict) = parse_helper(cmd, d, [:x :cores :n_threads], " -
 # ---------------------------------------------------------------------------------------------------
 function parse_t(cmd::String, d::Dict)
 	# Parse the global -t option. Return CMD same as input if no -t option in args
-	return parse_helper(cmd, d, [:t :alpha :transparency], " -t")
+	parse_helper(cmd, d, [:t :alpha :transparency], " -t")
 end
 
 # ---------------------------------------------------------------------------------------------------
@@ -587,14 +593,21 @@ function parse_helper(cmd::String, d::Dict, symbs, opt::String)
 	# Helper function to the parse_?() global options. Isolate in a fun to not repeat over and over
 	opt_val = ""
 	if ((val = find_in_dict(d, symbs)[1]) !== nothing)
-		opt_val = opt * arg2str(val)
+		#opt_val = opt * arg2str(val)
+		#cmd *= opt_val
+		opt_val = arg2str(val)
+		if (opt_val != "none")
+			opt_val = opt * opt_val
+		end
 		cmd *= opt_val
 	end
 	return cmd, opt_val
 end
 
 # ---------------------------------------------------------------------------------------------------
-function parse_common_opts(d, cmd, opts)
+function parse_common_opts(d, cmd, opts, first=true)
+	global current_view
+	opt_p = nothing
 	for opt in opts
 		if     (opt == :a)  cmd, = parse_a(cmd, d)
 		elseif (opt == :b)  cmd, = parse_b(cmd, d)
@@ -610,18 +623,30 @@ function parse_common_opts(d, cmd, opts)
 		elseif (opt == :i)  cmd, = parse_i(cmd, d)
 		elseif (opt == :n)  cmd, = parse_n(cmd, d)
 		elseif (opt == :o)  cmd, = parse_o(cmd, d)
-		elseif (opt == :p)  cmd, = parse_p(cmd, d)
+		elseif (opt == :p)  cmd, opt_p = parse_p(cmd, d)
 		elseif (opt == :r)  cmd, = parse_r(cmd, d)
 		elseif (opt == :s)  cmd, = parse_s(cmd, d)
 		elseif (opt == :x)  cmd, = parse_x(cmd, d)
 		elseif (opt == :t)  cmd, = parse_t(cmd, d)
 		elseif (opt == :yx) cmd, = parse_swap_xy(cmd, d)
 		elseif (opt == :R)  cmd, = parse_R(cmd, d)
+		elseif (opt == :F)  cmd  = parse_F(cmd, d)
 		elseif (opt == :J)  cmd, = parse_J(cmd, d)
 		elseif (opt == :JZ) cmd, = parse_JZ(cmd, d)
 		elseif (opt == :UVXY) cmd = parse_UVXY(cmd, d)
 		elseif (opt == :V_params) cmd = parse_V_params(cmd, d)
 		elseif (opt == :params) cmd = parse_params(cmd, d)
+		end
+	end
+	if (opt_p !== nothing)		# Restrict the contents of this block to when -p was used
+		if (opt_p != "")
+			if (opt_p == "none")  current_view = nothing
+			else                  current_view = opt_p
+			end
+		elseif (!first && current_view !== nothing)
+			cmd *= current_view
+		elseif (first)
+			current_view = nothing		# Ensure we start empty
 		end
 	end
 	return cmd
@@ -748,7 +773,7 @@ function opt_pen(d::Dict, opt::Char, symbs)
 		out = string(" -", opt, pen)
 	else
 		if ((val = find_in_dict(d, symbs)[1]) !== nothing)
-			if (isa(val, String) || isa(val, Number))
+			if (isa(val, String) || isa(val, Number) || isa(val, Symbol))
 				out = string(" -", opt, val)
 			elseif (isa(val, Tuple))	# Like this it can hold the pen, not extended atts
 				out = string(" -", opt, parse_pen(val))
@@ -828,7 +853,8 @@ function arg2str(arg)
 	elseif (isa(arg, Number))		# Have to do it after the Bool test above because Bool is a Number too
 		out = @sprintf("%.15g", arg)
 	elseif (isa(arg, Array{<:Number}) || (isa(arg, Tuple) && !isa(arg[1], String)) )
-		out = join([@sprintf("%.15g/",x) for x in arg])
+		#out = join([@sprintf("%.15g/",x) for x in arg])
+		out = join([string(x,'/') for x in arg])
 		out = rstrip(out, '/')		# Remove last '/'
 	elseif (isa(arg, Tuple) && isa(arg[1], String))		# Maybe better than above but misses nice %.xxg
 		out = join(arg,'/')
@@ -858,7 +884,7 @@ end
 # ---------------------------------------------------------------------------------------------------
 function finish_PS(d::Dict, cmd::String, output::String, K::Bool, O::Bool)
 	# Finish a PS creating command. All PS creating modules should use this.
-	if (!haskey(d, :P) && !haskey(d, :portrait))  cmd *= " -P"  end
+	if (!O && !haskey(d, :P) && !haskey(d, :portrait))  cmd *= " -P"  end
 
 	if (K && !O)              opt = " -K"
 	elseif (K && O)           opt = " -K -O"
@@ -881,33 +907,49 @@ end
 function add_opt(cmd::String, opt, d::Dict, symbs, mapa=nothing, del::Bool=false, arg=nothing)
 	# Scan the D Dict for SYMBS keys and if found create the new option OPT and append it to CMD
 	# If DEL == true we remove the found key.
-	if ((val = find_in_dict(d, symbs, del)[1]) !== nothing)
-		if (isa(val, NamedTuple) && isa(mapa, NamedTuple))
-			args = add_opt(val, mapa, arg)
-		elseif (isa(val, Tuple) && length(val) > 1 && isa(val[1], NamedTuple))	# In fact, all val[i] -> NT
-			# Used in recursive calls for options like -I, -N , -W of pscoast. Here we assume that opt != ""
-			args = ""
-			for k = 1:length(val)
-				args *= " -" * opt * add_opt(val[k], mapa, arg)
-			end
-			return cmd * args
-		elseif (isa(mapa, Tuple) && length(mapa) > 1 && isa(mapa[2], Function))	# grdcontour -G
-			if (isa(val, NamedTuple))
-				if (mapa[2] == helper_decorated)  args = mapa[2](val, true)		# 'true' means getting a single argout
-				else                              args = mapa[2](val)			# Case not yet invented
+	# ARG, is a special case to append to a matrix (complicated thing in Julia)
+	# ARG can alse be a Bool, in which case when MAPA is a NT we expand each of its members as sep options
+	if ((val = find_in_dict(d, symbs, del)[1]) === nothing)
+		if (isa(arg, Bool) && isa(mapa, NamedTuple))	# Make each mapa[i] a mapa[i]key=mapa[i]val
+			cmd_ = ""
+			for k in keys(mapa)
+				if ((val_ = find_in_dict(d, [k])[1]) === nothing)  continue  end
+				if (isa(mapa[k], Tuple))  cmd_ *= mapa[k][1] * mapa[k][2](d, [k])
+				else                      cmd_ *= mapa[k] * arg2str(val_)
 				end
-			elseif (isa(val, String))
-				args = val
-			else
-				error("The option argument must be a NamedTuple, not a simple Tuple")
 			end
-		else
-			args = arg2str(val)
+			if (cmd_ != "")  cmd *= " -" * opt * cmd_  end
 		end
-		if (opt != "")  cmd = string(cmd, " -", opt, args)
-		else            cmd = string(cmd, args)
-		end
+		return cmd
 	end
+
+	if (isa(val, NamedTuple) && isa(mapa, NamedTuple))
+		args = add_opt(val, mapa, arg)
+	elseif (isa(val, Tuple) && length(val) > 1 && isa(val[1], NamedTuple))	# In fact, all val[i] -> NT
+		# Used in recursive calls for options like -I, -N , -W of pscoast. Here we assume that opt != ""
+		args = ""
+		for k = 1:length(val)
+			args *= " -" * opt * add_opt(val[k], mapa, arg)
+		end
+		return cmd * args
+	elseif (isa(mapa, Tuple) && length(mapa) > 1 && isa(mapa[2], Function))	# grdcontour -G
+		if (isa(val, NamedTuple))
+			if (mapa[2] == helper_decorated)  args = mapa[2](val, true)		# 'true' => single argout
+			else                              args = mapa[2](val)			# Case not yet invented
+			end
+		elseif (isa(val, String))
+			args = val
+		else
+			error("The option argument must be a NamedTuple, not a simple Tuple")
+		end
+	else
+		args = arg2str(val)
+	end
+
+	if (opt != "")  cmd = string(cmd, " -", opt, args)
+	else            cmd = string(cmd, args)
+	end
+
 	return cmd
 end
 
@@ -915,6 +957,7 @@ end
 function add_opt(nt::NamedTuple, mapa::NamedTuple, arg=nothing)
 	# Generic parser of options passed in a NT and whose last element is anther NT with the mapping
 	# between expanded sub-options names and the original GMT flags.
+	# ARG, is a special case to append to a matrix (complicated thing in Julia)
 	# Example:
 	#	add_opt((a=(1,0.5),b=2), (a="+a",b="-b"))
 	# translates to:	"+a1/0.5-b2"
@@ -1067,6 +1110,7 @@ end
 function get_cpt_set_R(d, cmd0, cmd, opt_R, got_fname, arg1, arg2=nothing, arg3=nothing, prog="")
 	# Get CPT either from keyword input of from current_cpt.
 	# Also puts -R in cmd when accessing grids from grdimage|view|contour, etc... (due to a GMT bug that doesn't do it)
+	# Used CMD0 = "" to use this function from within non-grd modules
 	global current_cpt
 	cpt_opt_T = ""
 	if (isa(arg1, GMTgrid))			# GMT bug, -R will not be stored in gmt.history
@@ -1092,9 +1136,9 @@ function get_cpt_set_R(d, cmd0, cmd, opt_R, got_fname, arg1, arg2=nothing, arg3=
 		end
 	elseif (prog == "grdimage" && (isempty_(arg3) && !occursin("-D", cmd)))
 		get_cpt = true		# This still lieve out the case when the r,g,b were sent as a text.
-	elseif (prog == "grdcontour")	# Here C means Contours but we cheat, so always check if C, color, ... is present
+	elseif (prog == "grdcontour" || prog == "pscontour")	# Here C means Contours but we cheat, so always check if C, color, ... is present
 		get_cpt = true;		cpt_opt_T = ""		# This is hell. And what if I want to auto generate a cpt?
-		if (!occursin("+c", cmd))  in_bag = false  end
+		if (prog == "grdcontour" && !occursin("+c", cmd))  in_bag = false  end
 	#elseif (prog == "" && current_cpt !== nothing)		# Not yet used
 		#get_cpt = true
 	end
@@ -1171,7 +1215,12 @@ end
 
 # ---------------------------------------------------------------------------------------------------
 function font(d::Dict, symbs)
-	font(collect(values(d))[1])		# Don't understand why types got so complicated that must use 'collect'
+	if ((val = find_in_dict(d, symbs)[1]) !== nothing)
+		font(val)
+	else
+		# Should not come here anymore, collect returns the dict members in arbitrary order
+		font(collect(values(d))[1])
+	end
 end
 function font(val)
 	# parse and create a font string.
@@ -1718,7 +1767,7 @@ end
 # ---------------------------------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------------------------------
-function fname_out(d::Dict)
+function fname_out(d::Dict, first::Bool)
 	# Create an file name in the TMP dir when OUT holds only a known extension. The name is: GMTjl_tmp.ext
 	EXT = ""
 	if (haskey(d, :fmt))  out = string(d[:fmt])
@@ -1748,22 +1797,26 @@ function fname_out(d::Dict)
 		elseif (ext == "pdg")  opt_T = " -Tf -Qp";	out = template;	EXT = "pdf"
 		end
 	end
-	return out, opt_T, EXT
+	K, O = set_KO(first)		# Set the K O dance
+	return out, opt_T, EXT, K, O
 end
 
 # ---------------------------------------------------------------------------------------------------
-function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", opt_bi="", opt_di="", is3D=false)
+function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", is3D=false)
 	# In case DATA holds a file name, read that data and put it in ARG
 	# Also compute a tight -R if this was not provided
 	data_kw = nothing
-	if (haskey(d, :data))	data_kw = d[:data]	end
-	if (fname != "")	data_kw = fname		end
+	if (haskey(d, :data))  data_kw = d[:data]  end
+	if (fname != "")       data_kw = fname     end
 
-	lix, opt_h  = parse_h("", d)		# Experimentally, put the header test here
+	cmd, opt_i  = parse_i(cmd, d)		# If data is to be read as binary
+	cmd, opt_di = parse_di(cmd, d)		# If data missing data other than NaN
+	lixo, opt_h = parse_h("", d)		# Experimentally, put the header test here
 	if (isa(data_kw, String))
+		lixo, opt_bi = parse_bi("", d)	# See if user says file is binary
 		if (GMTver >= 6)				# Due to a bug in GMT5, gmtread has no -i option
 			data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * opt_h * " " * data_kw)
-			if (!isempty(opt_i))		# Remove the -i option from cmd. It has done its job
+			if (opt_i != "")			# Remove the -i option from cmd. It has done its job
 				cmd = replace(cmd, opt_i => "")
 				opt_i = ""
 			end
@@ -1775,7 +1828,7 @@ function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", opt_bi=
 	if (!isempty_(data_kw)) arg = data_kw  end		# Finaly move the data into ARG
 
 	if (opt_R == "" || opt_R[1] == '/')
-		info = gmt("gmtinfo -C" * opt_i * opt_h, arg)		# Here we are reading from an original GMTdataset or Array
+		info = gmt("gmtinfo -C" * opt_i * opt_di * opt_h, arg)		# Here we are reading from an original GMTdataset or Array
 		if (opt_R != "" && opt_R[1] == '/')	# Modify what will be reported as a -R string
 			# Example "/-0.1/0.1/0//" will extend x axis +/- 0.1, set y_min=0 and no change to y_max
 			rs = split(opt_R, '/')
@@ -1864,17 +1917,15 @@ function find_data(d::Dict, cmd0::String, cmd::String, tipo, arg1=nothing, arg2=
 	# Check if we need to save to file
 	if (haskey(d, :>))			cmd = string(cmd, " > ", d[:>])
 	elseif (haskey(d, :|>))		cmd = string(cmd, " > ", d[:|>])
-	elseif (haskey(d, :write))	cmd = string(cmd, " > ", d[write])
+	elseif (haskey(d, :write))	cmd = string(cmd, " > ", d[:write])
 	elseif (haskey(d, :>>))		cmd = string(cmd, " > ", d[:>>])
-	elseif (haskey(d, :write_append))	cmd = string(cmd, " > ", d[write_append])
+	elseif (haskey(d, :write_append))	cmd = string(cmd, " > ", d[:write_append])
 	end
 
 	if (tipo == 1)
 		# Accepts "input1"; arg1; data=input1;
-		if (got_fname != 0)
-			return cmd, got_fname, arg1		# got_fname = 1 => data is in cmd
-		elseif (arg1 !== nothing)
-			return cmd, got_fname, arg1 	# got_fname = 0 => data is in arg1
+		if (got_fname != 0 || arg1 !== nothing)
+			return cmd, got_fname, arg1		# got_fname = 1 => data is in cmd;	got_fname = 0 => data is in arg1
 		elseif (data_kw !== nothing)
 			if (isa(data_kw, String))
 				cmd = data_kw * " " * cmd
@@ -1885,8 +1936,8 @@ function find_data(d::Dict, cmd0::String, cmd::String, tipo, arg1=nothing, arg2=
 		else
 			error("Missing input data to run this module.")
 		end
-	elseif (tipo == 2)			# Two inputs (but second can be optional is some modules)
-		# Accepts "input1  input2"; "input1", arg1; "input1", data=input2; arg1, arg2; data=(input1,input2)
+	elseif (tipo == 2)			# Two inputs (but second can be optional in some modules)
+		# Accepts "input1 input2"; "input1", arg1; "input1", data=input2; arg1, arg2; data=(input1,input2)
 		if (got_fname != 0)
 			if (arg1 === nothing && data_kw === nothing)
 				return cmd, 1, arg1, arg2		# got_fname = 1 => all data is in cmd
@@ -1894,8 +1945,6 @@ function find_data(d::Dict, cmd0::String, cmd::String, tipo, arg1=nothing, arg2=
 				return cmd, 2, arg1, arg2		# got_fname = 2 => data is in cmd and arg1
 			elseif (data_kw !== nothing && length(data_kw) == 1)
 				return cmd, 2, data_kw, arg2	# got_fname = 2 => data is in cmd and arg1
-			else
-				error("Missing input data to run this module.")
 			end
 		else
 			if (arg1 !== nothing && arg2 !== nothing)
@@ -1906,12 +1955,11 @@ function find_data(d::Dict, cmd0::String, cmd::String, tipo, arg1=nothing, arg2=
 				return cmd, 0, arg1, data_kw			# got_fname = 0 => all data is in arg1,2
 			elseif (data_kw !== nothing && length(data_kw) == 2)
 				return cmd, 0, data_kw[1], data_kw[2]	# got_fname = 0 => all data is in arg1,2
-			else
-				error("Missing input data to run this module.")
 			end
 		end
+		error("Missing input data to run this module.")
 	elseif (tipo == 3)			# Three inputs
-		# Accepts "input1  input2 input3"; arg1, arg2, arg3; data=(input1,input2,input3)
+		# Accepts "input1 input2 input3"; arg1, arg2, arg3; data=(input1,input2,input3)
 		if (got_fname != 0)
 			if (arg1 === nothing && data_kw === nothing)
 				return cmd, 1, arg1, arg2, arg3			# got_fname = 1 => all data is in cmd
@@ -1929,21 +1977,26 @@ function find_data(d::Dict, cmd0::String, cmd::String, tipo, arg1=nothing, arg2=
 end
 
 # ---------------------------------------------------------------------------------------------------
+function common_grd(d::Dict, cmd0::String, cmd::String, prog::String, tipo::Int, args...)
+	# TEMP function. To be merged with the other when I know that it works well
+	n_args = length(args)
+	if (n_args <= 1)
+		cmd, got_fname, arg1 = find_data(d, cmd0, cmd, 1, args...)
+		if (isa(arg1, Array{<:Number}) && startswith(prog, "grd"))  arg1 = mat2grid(arg1)  end
+		common_grd(d, prog * cmd, 0, 1, arg1)
+	elseif (n_args == 2)
+		cmd, got_fname, arg1, arg2 = find_data(d, cmd0, cmd, 2, args...)
+		if (isa(arg1, Array{<:Number}) && startswith(prog, "grd"))  arg1 = mat2grid(arg1)  end
+		common_grd(d, prog * cmd, 0, 2, arg1, arg2)
+	end
+end
+
+# ---------------------------------------------------------------------------------------------------
 function common_grd(d::Dict, cmd::String, got_fname::Int, tipo::Int, args...)
 	# This chunk of code is shared by several grdxxx modules, so wrap it in a function
 	dbg_print_cmd(d, cmd)
-	if (tipo == 1)				# One input only
-		if (got_fname != 0)  return gmt(cmd)
-		else                 return gmt(cmd, args[1])
-		end
-	elseif (tipo == 2)			# Two inputs
-		if (got_fname == 1)
-			return gmt(cmd)
-		elseif (got_fname == 2)	# NOT SURE ON THIS ONE
-			return gmt(cmd, args[1])
-		else
-			return gmt(cmd, args[1], args[2])
-		end
+	if (tipo <= 2)				# One or two inputs
+		return gmt(cmd, args...)
 	else						# ARGS is a tuple(tuple) with all numeric inputs
 		return gmt(cmd, args[1]...)		# args[1] because args is a tuple(tuple)
 	end
@@ -1972,6 +2025,7 @@ function showfig(d::Dict, fname_ps::String, fname_ext::String, opt_T::String, K=
 	# FNAME is for when using the savefig option
 
 	global current_cpt = nothing		# Always reset to empty when fig is finalized
+	global current_view = nothing
 	if (opt_T != "")
 		if (K) gmt("psxy -T -R0/1/0/1 -JX1 -O >> " * fname_ps)  end		# Close the PS file first
 		gmt("psconvert -A1p -Qg4 -Qt4 " * fname_ps * opt_T)
@@ -2021,32 +2075,22 @@ function put_in_slot(cmd::String, val, opt::Char, args)
 	return cmd, k
 end
 
-#= ---------------------------------------------------------------------------------------------------
+## ---------------------------------------------------------------------------------------------------
 function finish_PS_module(d::Dict, cmd, opt_extra::String, output::String, fname_ext::String,
-	opt_T::String, K::Bool, O::Bool, prog::String, args...)
+	opt_T::String, K::Bool, O::Bool, finish::Bool, args...)
 	# FNAME_EXT hold the extension when not PS
 	# OPT_EXTRA is used by grdcontour -D or pssolar -I to not try to create and view a img file
-	cmd = finish_PS(d, cmd, output, K, O)
-	return finish_PS_module(d, cmd, opt_extra, output, fname_ext, opt_T::String, K, prog, args...)
-end
-=#
-
-# ---------------------------------------------------------------------------------------------------
-function finish_PS_module(d::Dict, cmd, opt_extra::String, output::String, fname_ext::String,
-						  opt_T::String, K::Bool, arg1=nothing, arg2=nothing, arg3=nothing,
-						  arg4=nothing, arg5=nothing, arg6=nothing)
-	# FNAME_EXT hold the extension when not PS
-	# OPT_EXTRA is used by grdcontour -D or pssolar -I to not try to create and view a img file
+	if (finish) cmd = finish_PS(d, cmd, output, K, O)  end
 
 	if ((r = dbg_print_cmd(d, cmd)) !== nothing)  return r  end 	# For tests only
 	global img_mem_layout = add_opt("", "", d, [:layout])
 
 	if (isa(cmd, Array{String, 1}))
 		for k = 1:length(cmd)
-			P = gmt(cmd[k], arg1, arg2)
+			P = gmt(cmd[k], args...)
 		end
 	else
-		P = gmt(cmd, arg1, arg2, arg3, arg4, arg5, arg6)
+		P = gmt(cmd, args...)
 	end
 
 	digests_legend_bag(d)			# Plot the legend if requested

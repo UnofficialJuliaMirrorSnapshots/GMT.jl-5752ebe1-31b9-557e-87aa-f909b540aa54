@@ -31,12 +31,12 @@ Parameters
 
     Controls the placement of labels along the quoted lines.
     [`-G`](http://gmt.soest.hawaii.edu/doc/latest/pscontour.html#g)
-- **I** : **colorize** : -- Bool or [] --
+- **I** : **fill** : **colorize** : -- Bool or [] --
 
     Color the triangles using the color scale provided via **C**.
     [`-I`](http://gmt.soest.hawaii.edu/doc/latest/pscontour.html#i)
 - $(GMT.opt_Jz)
-- **L** : **mesh** : -- [] or Str or Number --
+- **L** : **mesh** : -- Str or Number --
 
     Draw the underlying triangular mesh using the specified pen attributes (if not provided, use default pen)
     [`-L`](http://gmt.soest.hawaii.edu/doc/latest/pscontour.html#l)
@@ -86,49 +86,36 @@ function contour(cmd0::String="", arg1=nothing; first=true, kwargs...)
 
 	length(kwargs) == 0 && return monolitic("pscontour", cmd0, arg1)
 
-	arg2 = nothing       # May will contain a CPT or a Mx3 indices array
-	arg3 = nothing       # May will contain a Mx3 indices array
-	N_args = isempty_(arg1) ? 0 : 1
-
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
-    cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12c/0")
-	cmd, opt_bi = parse_bi(cmd, d)
-	cmd, opt_i = parse_i(cmd, d)
-	cmd = parse_common_opts(d, cmd, [:UVXY :bo :d :di :do :e :h :p :t :yx :params])
-	cmd = parse_these_opts(cmd, d, [[:D :dump], [:G :labels], [:I :colorize], [:L :mesh], [:N :no_clip],
-				[:Q :cut], [:S :skip], [:T :ticks], [:W :pen]])
+	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12c/0")
+	cmd = parse_common_opts(d, cmd, [:UVXY :bo :d :do :e :p :t :yx :params], first)
+	cmd = parse_these_opts(cmd, d, [[:D :dump], [:I :fill :colorize], [:N :no_clip], [:Q :cut], [:S :skip]])
+	cmd *= add_opt_pen(d, [:L :mesh], "L")
+	cmd = parse_contour_AGTW(d::Dict, cmd::String)
 
 	# If file name sent in, read it and compute a tight -R if this was not provided
-    cmd, arg1, opt_R, opt_i = read_data(d, cmd0, cmd, arg1, opt_R, opt_i, opt_bi, opt_di)
-    cmd, arg1, arg2, N_args = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_args, arg1, arg2)
-    
-	cmd = add_opt(cmd, 'A', d, [:A :annot])
+	cmd, arg1, opt_R, = read_data(d, cmd0, cmd, arg1, opt_R)
+	cmd, N_used, arg1, arg2, arg3 = get_cpt_set_R(d, "", cmd, opt_R, (arg1 === nothing), arg1, nothing, nothing, "pscontour")
+
 	if (!occursin(" -C", cmd))			# Otherwise ignore an eventual :cont because we already have it
 		cmd = add_opt(cmd, 'C', d, [:cont :contours :levels])
 	end
 
 	if ((val = find_in_dict(d, [:E :index])[1]) !== nothing)
 		if (isa(val, Array{Int}))
-			cmd = string(cmd, " -E")
+			cmd *= " -E"
 			# Now need to find the free slot where to store the indices array
-			if (N_args == 0)      arg1 = val
-			elseif (N_args == 1)  arg2 = val
-			else                  arg3 = val
-			end
+			(N_used == 0) ? arg1 = val : (N_used == 1 ? arg2 = val : arg3 = val)
 		else
 			cmd = string(cmd, " -E", arg2str(val))
 		end
 	end
 
-	if (!occursin(" -W", cmd) && !occursin(" -I", cmd))		# Use default pen
-		cmd = cmd * " -W"
-	end
+	if (!occursin(" -W", cmd) && !occursin(" -I", cmd))  cmd *= " -W"  end	# Use default pen
 
-	cmd = finish_PS(d, cmd, output, K, O)
-    return finish_PS_module(d, "pscontour " * cmd, "-D", output, fname_ext, opt_T, K, arg1, arg2, arg3)
+	return finish_PS_module(d, "pscontour " * cmd, "-D", output, fname_ext, opt_T, K, O, true, arg1, arg2, arg3)
 end
 
 # ---------------------------------------------------------------------------------------------------

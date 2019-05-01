@@ -218,9 +218,7 @@ function gmt(cmd::String, args...)
 	X = GMT_Encode_Options(API, g_module, n_argin, pLL, n_items)	# This call also changes LL
 	n_items = unsafe_load(n_items)
 	if (X == NULL && n_items > 65000)		# Just got usage/synopsis option (if (n_items == UINT_MAX)) in C
-		n_items = 0
-	elseif (X == NULL)
-		error("GMT: Failure to encode Julia command options")
+		(n_items > 65000) ? n_items = 0 : error("Failure to encode Julia command options") 
 	end
 
 	if (LL == NULL)		# The no-options case. Must get the LL that was created in GMT_Encode_Options
@@ -302,7 +300,6 @@ function gmt(cmd::String, args...)
 	elseif (n_out == 3)
 		return out[1], out[2], out[3]
 	else
-		@warn("Case non-foreseen. More than 3 outputs?")
 		return out
 	end
 
@@ -339,7 +336,7 @@ function parse_mem_layouts(cmd)
 	if ((ind = findfirst( "-%", cmd)) !== nothing)
 		img_mem_layout, resto = strtok(cmd[ind[1]+2:end])
 		if (length(img_mem_layout) < 3 || length(img_mem_layout) > 4)
-			error(@sprintf("GMT: Memory layout option must have 3 characters and not %s", img_mem_layout))
+			error(@sprintf("Memory layout option must have 3 characters and not %s", img_mem_layout))
 		end
 		cmd = cmd[1:ind[1]-1] * " " * resto 	# Remove the -L pseudo-option because GMT would bail out
 	end
@@ -347,7 +344,7 @@ function parse_mem_layouts(cmd)
 		if ((ind = findfirst( "-&", cmd)) !== nothing)
 			grd_mem_layout, resto = strtok(cmd[ind[1]+2:end])
 			if (length(img_mem_layout) < 2)
-				error(@sprintf("GMT: Memory layout option must have at least 2 chars and not %s", grd_mem_layout))
+				error(@sprintf("Memory layout option must have at least 2 chars and not %s", grd_mem_layout))
 			end
 			cmd = cmd[1:ind[1]-1] * " " * resto 	# Remove the -L pseudo-option because GMT would bail out
 		end
@@ -360,9 +357,6 @@ end
 function strtok(args, delim::String=" ")
 # A Matlab like strtok function
 	tok = "";	r = ""
-	#if (~isvalid(args))
-	#	return tok, r
-	#end
 
 	@label restart
 	ind = findfirst(delim, args)
@@ -1770,8 +1764,8 @@ function fakedata(sz...)
 		y[r,:] = 0.95 * vec(y[r-1,:]) + randn(size(y,2))
 	end
 	y
-  end
- 
+end
+
 # EDIPO SECTION
 # ---------------------------------------------------------------------------------------------------
 linspace(start, stop, length=100) = range(start, stop=stop, length=length)

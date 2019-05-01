@@ -93,14 +93,10 @@ function histogram(cmd0::String="", arg1=nothing; first=true, kwargs...)
 		return gmt("pshistogram " * cmd, arg1)
 	end
 
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "histogram", O, " -JX12c/12c")
-	cmd, opt_bi = parse_bi(cmd, d)
-	cmd, opt_di = parse_di(cmd, d)
-	cmd, opt_i = parse_i(cmd, d)
-	cmd = parse_common_opts(d, cmd, [:UVXY :JZ :e :h :p :t :yx :params])
+	cmd = parse_common_opts(d, cmd, [:UVXY :JZ :e :p :t :yx :params], first)
 	cmd = parse_these_opts(cmd, d, [[:A :horizontal], [:D :annot :annotate], [:F :center],
 				[:Q :cumulative], [:S :stairs]])
 	cmd = add_opt_fill(cmd, d, [:G :fill], 'G')
@@ -109,7 +105,7 @@ function histogram(cmd0::String="", arg1=nothing; first=true, kwargs...)
 
 	# If file name sent in, read it and compute a tight -R if this was not provided
 	if (opt_R == "")  opt_R = " "  end		# So it doesn't try to find the -R in next call
-	cmd, arg1, opt_R, opt_i = read_data(d, cmd0, cmd, arg1, opt_R, opt_i, opt_bi, opt_di)
+	cmd, arg1, opt_R, = read_data(d, cmd0, cmd, arg1, opt_R)
 	cmd, arg1, arg2, = add_opt_cpt(d, cmd, [:C :color :cmap], 'C', N_args, arg1, arg2)
 
 	if (GMTver >= 6)
@@ -132,8 +128,7 @@ function histogram(cmd0::String="", arg1=nothing; first=true, kwargs...)
 		end
 	end
 
-	cmd = finish_PS(d, cmd, output, K, O)
-	return finish_PS_module(d, "pshistogram " * cmd, "", output, fname_ext, opt_T, K, arg1, arg2)
+	return finish_PS_module(d, "pshistogram " * cmd, "", output, fname_ext, opt_T, K, O, true, arg1, arg2)
 end
 
 # ---------------------------------------------------------------------------------------------------

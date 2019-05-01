@@ -40,19 +40,15 @@ function image(cmd0::String="", arg1=nothing; first=true, kwargs...)
 	length(kwargs) == 0 && return monolitic("psimage", cmd0, arg1)
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12c/12c")
-	cmd = parse_common_opts(d, cmd, [:UVXY :JZ :p :t :params])
+	cmd = parse_common_opts(d, cmd, [:F :UVXY :JZ :p :t :params], first)
 	cmd = parse_these_opts(cmd, d, [[:D :ref_point], [:G :bit_color], [:I :invert_1bit], [:M :monochrome]])
-	cmd = add_opt(cmd, 'F', d, [:F :box], (clearance="+c", fill=("+g", add_opt_fill), inner="+i",
-	                                       pen=("+p", add_opt_pen), rounded="+r", shade="+s"))
 
 	cmd, got_fname, arg1 = find_data(d, cmd0, cmd, 1, arg1)		# Find how data was transmitted
 
-	cmd = finish_PS(d, cmd, output, K, O)
-	return finish_PS_module(d, "psimage " * cmd, "", output, fname_ext, opt_T, K, arg1)
+	return finish_PS_module(d, "psimage " * cmd, "", output, fname_ext, opt_T, K, O, true, arg1)
 end
 
 # ---------------------------------------------------------------------------------------------------

@@ -105,7 +105,7 @@ function psconvert(cmd0::String="", arg1=nothing; kwargs...)
 	if ((val = find_in_dict(d, [:C :gs_option])[1]) !== nothing)
 		if (isa(val, String) || isa(val, Symbol))
 			cmd = string(cmd, " -C", val)
-		elseif (isa(val, Array{Any})) 
+		elseif (isa(val, Array{String})) 
 			for k = 1:length(val)
 				cmd *= " -C" * val[k]
 			end
@@ -125,7 +125,6 @@ function psconvert(cmd0::String="", arg1=nothing; kwargs...)
 	end
 
 	# In case DATA holds a file name, copy it into cmd.
-	#cmd, arg1, = read_data(d, cmd0, cmd, arg1)
 	if (cmd0 != "" || !isempty_(arg1))						# Data was passed as file name
 		cmd, got_fname, arg1 = find_data(d, cmd0, cmd, 1, arg1)		# Find how data was transmitted
 	end

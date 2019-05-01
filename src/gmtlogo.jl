@@ -41,9 +41,8 @@ function logo(cmd0::String=""; first=true, kwargs...)
 
 	length(kwargs) == 0 && return monolitic("gmtlogo", cmd0, arg1)
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, = parse_R("", d, O)
 	cmd, = parse_J(cmd, d, "", true, O)
 
@@ -69,15 +68,15 @@ function logo(cmd0::String=""; first=true, kwargs...)
 			fmt = d[:fmt];	delete!(d, :fmt);
 			fname_ext = "ps"
 		end
-		finish_PS_module(d, "psxy " * c * cmd, "", output, fname_ext, opt_T, K, t)
-		if (haskey(d, :GMTjulia))
+		finish_PS_module(d, "psxy " * c * cmd, "", output, fname_ext, opt_T, K, O, false, t)
+		if (do_GMTjulia)
 			letter_height = 0.75 * r2 / 2.54 * 72 		# Make the letters 75% of the cicle's diameter
 			opt_F = @sprintf("+f%d,NewCenturySchlbk-Italic",letter_height)
 			text!(text_record(t[1:3,1:2], ["G", "T", "M"]), R=[], J=[], F=opt_F, fmt=fmt, show=do_show)
 		end
 	else
 		if (!occursin("-D", cmd))  cmd = " -Dx0/0+w5c " * cmd	end
-		return finish_PS_module(d, "gmtlogo " * cmd, "", output, fname_ext, opt_T, K)
+		return finish_PS_module(d, "gmtlogo " * cmd, "", output, fname_ext, opt_T, K, O, false)
 	end
 end
 

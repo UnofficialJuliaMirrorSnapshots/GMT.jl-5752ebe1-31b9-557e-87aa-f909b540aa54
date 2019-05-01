@@ -92,16 +92,13 @@ function coast(cmd0::String=""; clip=nothing, first=true, kwargs...)
 	length(kwargs) == 0 && return monolitic("pscoast", cmd0)
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
 	maybe_more = false				# If latter set to true, search for lc & lc pen settings
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12cd/0")
-	cmd = parse_common_opts(d, cmd, [:UVXY :bo :p :t :params])
+	cmd = parse_common_opts(d, cmd, [:F :UVXY :bo :p :t :params], first)
 	cmd = parse_these_opts(cmd, d, [[:A :area], [:C :river_fill], [:D :res :resolution], [:M :dump]])
 	cmd = parse_TdTmL(d, cmd)
-	cmd = add_opt(cmd, 'F', d, [:F :box], (clearance="+c", fill=("+g", add_opt_fill), inner="+i",
-	                                       pen=("+p", add_opt_pen), rounded="+r", shift="+s"))
 	cmd = add_opt_fill(cmd, d, [:G :land], 'G')
 	cmd = add_opt_fill(cmd, d, [:S :water :ocean], 'S')
 
@@ -144,8 +141,7 @@ function coast(cmd0::String=""; clip=nothing, first=true, kwargs...)
 	end
 	if (!occursin("-D",cmd))  cmd *= " -Da"  end		# Then pick automatic
 
-	cmd = finish_PS(d, cmd, output, K, O)
-	return finish_PS_module(d, "pscoast " * cmd, "", output, fname_ext, opt_T, K)
+	return finish_PS_module(d, "pscoast " * cmd, "", output, fname_ext, opt_T, K, O, true)
 end
 
 # ---------------------------------------------------------------------------------------------------

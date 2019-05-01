@@ -59,11 +59,10 @@ function grdimage(cmd0::String="", arg1=nothing, arg2=nothing, arg3=nothing; fir
 	arg4 = nothing		# For the r,g,b + intensity case
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, opt_J, opt_R = parse_BJR(d, "", "", O, " -JX12c/0")
-	cmd = parse_common_opts(d, cmd, [:UVXY :params :f :n :p :t])
+	cmd = parse_common_opts(d, cmd, [:UVXY :params :f :n :p :t], first)
 	cmd = parse_these_opts(cmd, d, [[:A :img_out :image_out], [:D :img_in :image_in], [:E :dpi], [:G],
 				[:M :monochrome], [:N :noclip], [:Q :nan_t :nan_alpha], ["," :mem :mem_layout]])
 
@@ -74,8 +73,8 @@ function grdimage(cmd0::String="", arg1=nothing, arg2=nothing, arg3=nothing; fir
 
 	if (isa(arg1, Array{<:Number}))
 		arg1 = mat2grid(arg1)
-		if (!isempty_(arg2) && isa(arg2, Array{<:Number}))  arg2 = mat2grid(arg2)  end
-		if (!isempty_(arg3) && isa(arg3, Array{<:Number}))  arg3 = mat2grid(arg3)  end
+		if (isa(arg2, Array{<:Number}))  arg2 = mat2grid(arg2)  end
+		if (isa(arg3, Array{<:Number}))  arg3 = mat2grid(arg3)  end
 	end
 
 	cmd, N_used, arg1, arg2, arg3 = get_cpt_set_R(d, cmd0, cmd, opt_R, got_fname, arg1, arg2, arg3, "grdimage")
@@ -86,7 +85,7 @@ function grdimage(cmd0::String="", arg1=nothing, arg2=nothing, arg3=nothing; fir
 	if (!occursin("-A", cmd))			# -A means that we are requesting the image directly
 		cmd, K = finish_PS_nested(d, cmd, output, K, O, [:coast :colorbar :basemap])
 	end
-	return finish_PS_module(d, cmd, "", output, fname_ext, opt_T, K, arg1, arg2, arg3, arg4)
+	return finish_PS_module(d, cmd, "", output, fname_ext, opt_T, K, O, false, arg1, arg2, arg3, arg4)
 end
 
 # ---------------------------------------------------------------------------------------------------

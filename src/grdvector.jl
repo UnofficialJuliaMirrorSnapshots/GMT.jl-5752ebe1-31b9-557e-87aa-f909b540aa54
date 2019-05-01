@@ -62,11 +62,10 @@ function grdvector(cmd0::String="", arg1=nothing, arg2=nothing; first=true, kwar
 	length(kwargs) == 0 && return monolitic("grdvector", cmd0, arg1, arg2)
 
 	d = KW(kwargs)
-	output, opt_T, fname_ext = fname_out(d)		# OUTPUT may have been an extension only
+	output, opt_T, fname_ext, K, O = fname_out(d, first)		# OUTPUT may have been an extension only
 
-	K, O = set_KO(first)		# Set the K O dance
 	cmd, opt_B, = parse_BJR(d, "", "", O, " -JX12c/0")
-	cmd = parse_common_opts(d, cmd, [:UVXY :f :p :t :params])
+	cmd = parse_common_opts(d, cmd, [:UVXY :f :p :t :params], first)
 	cmd = parse_these_opts(cmd, d, [[:A :polar], [:I :inc], [:N :noclip :no_clip], [:S :scale],
 				[:T], [:Z :azimuth]])
 
@@ -84,8 +83,7 @@ function grdvector(cmd0::String="", arg1=nothing, arg2=nothing; first=true, kwar
 	end
 	cmd *= add_opt_pen(d, [:W :pen], "W")
 
-	cmd = finish_PS(d, cmd, output, K, O)
-    return finish_PS_module(d, "grdvector " * cmd, "", output, fname_ext, opt_T, K, arg1, arg2)
+    return finish_PS_module(d, "grdvector " * cmd, "", output, fname_ext, opt_T, K, O, true, arg1, arg2)
 end
 
 # ---------------------------------------------------------------------------------------------------

@@ -151,11 +151,14 @@ if (got_it)					# Otherwise go straight to end
 	GMT.GMTdataset([0.0 0]);
 	GMT.GMTdataset([0.0 0], Array{String,1}());
 
+	@test_throws ErrorException("Memory layout option must have 3 characters and not 1") GMT.parse_mem_layouts("-%1")
+	@test_throws ErrorException("Memory layout option must have at least 2 chars and not 1") GMT.parse_mem_layouts("-&1")
 	@test_throws ErrorException("parse_arg_and_pen: Nonsense first argument") GMT.parse_arg_and_pen(([:a],0))
 	@test_throws ErrorException("GMT: No module by that name -- bla -- was found.") gmt("bla")
 	@test_throws ErrorException("grd_init: input (Int64) is not a GRID container type") GMT.grid_init(C_NULL,0,0)
 	@test_throws ErrorException("image_init: input is not a IMAGE container type") GMT.image_init(C_NULL,0,0)
 	@test_throws ErrorException("Expected a CPT structure for input") GMT.palette_init(C_NULL,0,0,0)
+	@test_throws ErrorException("Bad family type") GMT.GMT_Alloc_Segment(C_NULL, -1, 0, 0, "", C_NULL)
 	GMT.strncmp("abcd", "ab", 2)
 	# ---------------------------------------------------------------------------------------------------
 
@@ -172,6 +175,7 @@ if (got_it)					# Otherwise go straight to end
 	if (G !== nothing)	# If run from GMT5 it will return nothing
 		G = blockmean(d, region=[0 2 0 2], inc=1, grid=true, reg=true, S=:n);	# Number of points in cell
 		G,L = blockmode(region=[0 2 0 2], inc=1, fields="z,l", reg=true, d);
+		G,L,H = blockmode(d, region=[0 2 0 2], inc=1, fields="z,l,h", reg=true)
 	end
 	D = blockmedian(region=[0 2 0 2], inc=1,  reg=true, d);
 	D = blockmean(region=[0 2 0 2], inc=1,  reg=true, d);
@@ -284,11 +288,15 @@ if (got_it)					# Otherwise go straight to end
 	@assert(r[1].data == r2[1].data)
 
 	# GRD2CPT
-	G=gmt("grdmath", "-R0/10/0/10 -I1 X");
+	G=gmt("grdmath", "-R0/10/0/10 -I2 X");
 	C=grd2cpt(G);
 
 	# GRD2XYZ (It's tested near the end)
 	#D=grd2xyz(G); # Use G of previous test
+	gmtwrite("lixo.grd", G)
+	D1=grd2xyz(G);
+	D2=grd2xyz("lixo.grd");
+	@assert(sum(D1[1].data) == sum(D2[1].data))
 
 	# GRD2KML
 	G=gmt("grdmath", "-R0/10/0/10 -I1 X -fg");
@@ -386,9 +394,9 @@ if (got_it)					# Otherwise go straight to end
 	grdvector(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), G=:black, W="1p", S=12)
 	grdvector!(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), W="1p", S=12, Vd=:cmd)
 	r = grdvector!("",dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65), W="1p", S=12, Vd=:cmd);
-	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.65 -W1p -P")
+	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.65 -W1p")
 	r = grdvector!("", 1, 2, I=0.2, vec="0.25+e+n0.66", W=1, S=12, Vd=:cmd);
-	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.66 -W1 -P")
+	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.66 -W1")
 
 	# GRDVOLUME
 	grdvolume(G);
@@ -414,8 +422,8 @@ if (got_it)					# Otherwise go straight to end
 	grdview!("",G, J="X6i", JZ=5, I=45, Q="s", C="topo", R="-15/15/-15/15/-1/1", view="120/30", Vd=:cmd);
 	grdview!(G, J="X6i", JZ=5,  I=45, Q="s", C="topo", R="-15/15/-15/15/-1/1", view="120/30", Vd=:cmd);
 	grdview!(G, G=G, J="X6i", JZ=5,  I=45, Q="s", C="topo", R="-15/15/-15/15/-1/1", view="120/30", Vd=:cmd);
-	r = grdview!(G, plane=(-6,:lightgray), surftype=(surf=true,mesh=:red), Vd=:cmd);
-	@test startswith(r, "grdview  -R -J -N-6+glightgray -Qsmred")
+	r = grdview!(G, plane=(-6,:lightgray), surftype=(surf=true,mesh=:red), view="120/30", Vd=:cmd);
+	@test startswith(r, "grdview  -R -J -p120/30 -N-6+glightgray -Qsmred")
 	@test_throws ErrorException("Wrong way of setting the drape (G) option.")  grdview(rand(16,16), G=(1,2))
 	if (GMTver >= 6)		# Crashes GMT5
 		I = mat2grid(rand(Float32,128,128))
@@ -425,8 +433,8 @@ if (got_it)					# Otherwise go straight to end
 	end
 
 	# GREENSPLINE
-	#d = [0 6.44; 1820 8.61; 2542 5.24; 2889 5.73; 3460 3.81; 4586 4.05; 6020 2.95; 6841 2.57; 7232 3.37; 10903 3.84; 11098 2.86; 11922 1.22; 12530 1.09; 14065 2.36; 14937 2.24; 16244 2.05; 17632 2.23; 19002 0.42; 20860 0.87; 22471 1.26];
-	#greenspline(d, R="-2000/25000", I=100, S=:l, D=0, Vd=:cmd)
+	d = [0 6.44; 1820 8.61; 2542 5.24; 2889 5.73; 3460 3.81; 4586 4.05; 6020 2.95; 6841 2.57; 7232 3.37; 10903 3.84; 11098 2.86; 11922 1.22; 12530 1.09; 14065 2.36; 14937 2.24; 16244 2.05; 17632 2.23; 19002 0.42; 20860 0.87; 22471 1.26];
+	greenspline(d, R="-2000/25000", I=100, S=:l, D=0, Vd=:cmd)
 
 	# IMSHOW
 	imshow(rand(128,128),show=false)
@@ -535,14 +543,21 @@ if (got_it)					# Otherwise go straight to end
 	    limits=(0.5,5.5,0,40), axis=:none, error_bars=(y=men_std,), Vd=:cmd)
 
 	# BAR3
-	G = gmt("grdmath -R-15/15/-15/15 -I0.5 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");
+	G = gmt("grdmath -R-15/15/-15/15 -I1 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");
+	gmtwrite("lixo.grd", G)
 	bar3(G, lw=:thinnest)
+	bar3("lixo.grd", grd=true, lw=:thinnest, Vd=:cmd)
 	bar3!(G, lw=:thinnest, Vd=:cmd)
 	bar3!("", G, lw=:thinnest, Vd=:cmd)
 	bar3(G, lw=:thinnest, bar=(width=0.085,), Vd=:cmd)
 	bar3(G, lw=:thinnest, width=0.085, nbands=3, Vd=:cmd)
-	bar3(G, lw=:thinnest, noshade=1, Vd=:cmd)
+	bar3(G, region="-15/15/-15/15/-2/2", lw=:thinnest, noshade=1, Vd=:cmd)
 	bar3(rand(4,4), Vd=:cmd)
+	D = grd2xyz(G);
+	bar3(D, width=0.01, Nbands=3, Vd=:cmd)
+	@test_throws ErrorException("BAR3: When first arg is a name, must also state its type. e.g. grd=true or dataset=true") bar3("lixo.grd")
+	gmtwrite("lixo.gmt", D)
+	@test_throws ErrorException("BAR3: When NOT providing *width* data must contain at least 5 columns.") bar3("lixo.gmt", dataset=true)
 
 	# PROJECT
 	if (GMTver >= 6)
@@ -585,7 +600,8 @@ if (got_it)					# Otherwise go straight to end
 
 	# PSCONVERT
 	gmt("psbasemap -R-10/0/35/45 -Ba -P -JX10d > lixo.ps")
-	#psconvert("lixo.ps", adjust=true, fmt="eps", C=:dDOINTERPOLATE)
+	psconvert("lixo.ps", adjust=true, fmt="eps", C="-dDOINTERPOLATE")
+	psconvert("lixo.ps", adjust=true, fmt="eps", C=["-dDOINTERPOLATE" "-dDOINTERPOLATE"])
 	psconvert("lixo.ps", adjust=true, fmt="tif")
 	gmt("grdinfo lixo.tif");
 
@@ -613,6 +629,7 @@ if (got_it)					# Otherwise go straight to end
 	x,y,z=GMT.peaks(grid=false);
 	contour([x[:] y[:] z[:]], cont=1, annot=2, axis="a")
 	contour!([x[:] y[:] z[:]], cont=1, Vd=:cmd)
+	contour!([x[:] y[:] z[:]], cont=1, E="lixo", Vd=:cmd)	# Cheating E opt because Vd=:cmd prevents its usage
 	contour!("", [x[:] y[:] z[:]], cont=1, Vd=:cmd)
 
 	# PSIMAGE
@@ -677,6 +694,9 @@ if (got_it)					# Otherwise go straight to end
 		"\tThere were a king with a large jaw and a queen with a plain face,"];
 	T = text_record(t,"> 3 5 18p 5i j");
 	pstext!(T, F="+f16p,Times-Roman,red+jTC", M=true)
+	pstext!(T, font=(16,"Times-Roman",:red), justify=:TC, M=true)
+	@test startswith(GMT.text([1 2 3; 4 5 6], Vd=:cmd), "pstext  -JX12c/0 -Baf -BWSen -R1/4/2/5")
+	@test_throws ErrorException("TEXT: input file must have at least three columns") text([1 2; 4 5], Vd=:cmd)
 
 	# PSWIGGLE
 	t=[0 7; 1 8; 8 3; 10 7];
