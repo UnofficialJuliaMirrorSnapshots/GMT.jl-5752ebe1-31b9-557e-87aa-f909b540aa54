@@ -66,9 +66,9 @@ function grdimage(cmd0::String="", arg1=nothing, arg2=nothing, arg3=nothing; fir
 	cmd = parse_these_opts(cmd, d, [[:A :img_out :image_out], [:D :img_in :image_in], [:E :dpi], [:G],
 				[:M :monochrome], [:N :noclip], [:Q :nan_t :nan_alpha], ["," :mem :mem_layout]])
 
-	cmd, got_fname, arg1 = find_data(d, cmd0, cmd, 1, arg1)		# Find how data was transmitted
+	cmd, got_fname, arg1 = find_data(d, cmd0, cmd, arg1)		# Find how data was transmitted
 	if (got_fname == 0 && isa(arg1, Tuple))			# Then it must be using the three r,g,b grids
-		cmd, got_fname, arg1, arg2, arg3 = find_data(d, cmd0, cmd, 3, arg1, arg2, arg3)
+		cmd, got_fname, arg1, arg2, arg3 = find_data(d, cmd0, cmd, arg1, arg2, arg3)
 	end
 
 	if (isa(arg1, Array{<:Number}))
@@ -93,7 +93,9 @@ function common_shade(d, cmd, arg1, arg2, arg3, arg4, prog)
 	# Used both by grdimage and grdview
 	if ((val = find_in_dict(d, [:I :shade :intensity])[1]) !== nothing)
 		if (!isa(val, GMTgrid))			# Uff, simple. Either a file name or a -A type modifier
-			if (isa(val, String) || isa(val, Symbol))  cmd *= " -I" * arg2str(val)
+			if (isa(val, String) || isa(val, Symbol))
+				val = arg2str(val)
+				val == "default" ? cmd *= " -I+a-45+nt1" : cmd *= " -I" * val
 			else
 				cmd = add_opt(cmd, 'I', d, [:I :shade :intensity],
 				              (auto="_+", azim="+a", azimuth="+a", norm="+n", default="_+d+a-45+nt1"))

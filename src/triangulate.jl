@@ -72,11 +72,12 @@ function triangulate(cmd0::String="", arg1=nothing; kwargs...)
 	length(kwargs) == 0 && return monolitic("triangulate", cmd0, arg1)
 
 	d = KW(kwargs)
-	cmd = parse_common_opts(d, "", [:R :J :V_params :bi :bo :di :e :f :h :i :r :yx])
+	cmd = parse_common_opts(d, "", [:R :I :V_params :bi :bo :di :e :f :h :i :r :yx])
 	cmd = parse_these_opts(cmd, d, [[:C :slope_grid], [:D :derivatives], [:E :empty], [:G :grid :outgrid],
-				[:I :inc], [:M :network], [:N :ids], [:Q :voronoi], [:S :triangles], [:T :edges], [:Z :xyz :triplets]])
+                [:M :network], [:N :ids], [:Q :voronoi], [:S :triangles], [:T :edges], [:Z :xyz :triplets]])
+    if (!occursin("-G", cmd)) cmd, = parse_J(cmd, d)  end
 
-	common_grd(d, cmd0, cmd, "triangulate ", 1, arg1)		# Finish build cmd and run it
+	common_grd(d, cmd0, cmd, "triangulate ", arg1)		# Finish build cmd and run it
 end
 
 # ---------------------------------------------------------------------------------------------------
