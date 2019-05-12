@@ -137,7 +137,7 @@ if (got_it)					# Otherwise go straight to end
 
 	@test GMT.helper0_axes((:left_full, :bot_full, :right_ticks, :top_bare, :up_bare)) == "WSetu"
 	d=Dict(:xaxis => (axes=:WSen,title=:aiai, label=:ai, annot=:auto, ticks=[], grid=10, annot_unit=:ISOweek,seclabel=:BlaBla), :xaxis2=>(annot=5,ticks=1), :yaxis=>(custom="lixo.txt",));
-	@test GMT.parse_B("", d)[1] == " -Bsxa5f1 -Bpyclixo.txt -BWSen+taiai -Bpx+lai+sBlaBla -BpxaUfg10"
+	@test GMT.parse_B("", d)[1] == " -BWSen+taiai -Bpx+lai+sBlaBla -BpxaUfg10 -Bpyclixo.txt -Bsxa5f1"
 	@test GMT.parse_B("",Dict(:B=>:same))[1] == " -B"
 	GMT.helper2_axes("lolo");
 	@test_throws ErrorException("Custom annotations NamedTuple must contain the member 'pos'") GMT.helper3_axes((a=0,),"","")
@@ -165,6 +165,7 @@ if (got_it)					# Otherwise go straight to end
 
 	@test_throws ErrorException("Memory layout option must have 3 characters and not 1") GMT.parse_mem_layouts("-%1")
 	@test_throws ErrorException("Memory layout option must have at least 2 chars and not 1") GMT.parse_mem_layouts("-&1")
+	@test GMT.parse_mem_layouts("-&BR")[3] == "BR"
 	@test_throws ErrorException("parse_arg_and_pen: Nonsense first argument") GMT.parse_arg_and_pen(([:a],0))
 	@test_throws ErrorException("GMT: No module by that name -- bla -- was found.") gmt("bla")
 	@test_throws ErrorException("grd_init: input (Int64) is not a GRID container type") GMT.grid_init(C_NULL,0,0)
@@ -288,6 +289,8 @@ if (got_it)					# Otherwise go straight to end
 	gmtwrite("lixo.dat", D)
 	gmt("gmtwrite lixo.cpt", cpt)		# Same but tests other code chunk in gmt_main.jl
 	gmt("gmtwrite lixo.dat", D)
+	gmt("write lixo.tif=gd:GTiff", mat2img(rand(UInt8,32,32,3)))
+	gmt("grdinfo lixo.tif");
 	@test_throws ErrorException("First argument cannot be empty. It must contain the file name to write.") gmtwrite("",[1 2]);
 
 	@show("GMTVECTOR")
@@ -398,13 +401,18 @@ if (got_it)					# Otherwise go straight to end
 	# GRDTREND
 	G  = gmt("grdmath", "-R0/10/0/10 -I1 X Y MUL");
 	G2 = grdtrend(G, model=3);
-	#w = mat2grid(ones(Float32, size(G.z,1), size(G.z,2)))
+	W = mat2grid(ones(Float32, size(G.z,1), size(G.z,2)));
 	G2 = grdtrend(G, model=3, diff=[], trend=true);
-	#G2 = grdtrend(G, model="3+r", W=true);	# GMT bug. grdtrend (api_import_grid): Could not find file ...
+	G2 = grdtrend(G, model="3+r", W=W);
+	G2 = grdtrend(G, model="3+r", W=(W,0), Vd=2);
 
 	# GRDTRACK
-	G = gmt("grdmath -R-15/15/-15/15 -I0.3 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");
+	#G = gmt("grdmath -R-15/15/-15/15 -I0.3 X Y HYPOT DUP 2 MUL PI MUL 8 DIV COS EXCH NEG 10 DIV EXP MUL =");
+	G = gmt("grdmath -R-2/2/-2/2 -I1 1");
+	gmtwrite("lixo.grd", G)
 	D = grdtrack([0 0], G);
+	@assert(D[1].data == [0.0 0 1])
+	D = grdtrack([0 0], G="lixo.grd");
 	@assert(D[1].data == [0.0 0 1])
 	D = grdtrack(G, [0 0]);
 	D = grdtrack([0 0], G=G);
@@ -498,6 +506,9 @@ if (got_it)					# Otherwise go straight to end
 	plot(1:2pi, rand(6), xaxis=(pi=1,), Vd=:cmd)
 	plot(1:2pi, rand(6), xaxis=(pi=(1,2),), Vd=:cmd)
 	plot(rand(10,4), leg=true)
+	plot([5 5], region=(0,10,0,10), frame=(annot=:a, ticks=:a, grid=5), figsize=10, symbol=:p, markerline=0.5, fill=:lightblue, E=(Y=[2 3 6 9],pen=1,cap="10p"), Vd=2);
+	plot(rand(10,4), S=:c, ms=0.2, markeredgecolor=:red, ml=2, Vd=2)
+	plot(rand(10,4), S=:c, ms=0.2, ml=2, W=1, Vd=2)
 	plot3d(rand(5,3), marker=:cube)
 	plot3d!(rand(5,3), marker=:cube, Vd=:cmd)
 	plot3d("", rand(5,3), Vd=:cmd)
@@ -636,7 +647,10 @@ if (got_it)					# Otherwise go straight to end
 	psconvert("lixo.ps", adjust=true, fmt="eps", C="-dDOINTERPOLATE")
 	psconvert("lixo.ps", adjust=true, fmt="eps", C=["-dDOINTERPOLATE" "-dDOINTERPOLATE"])
 	psconvert("lixo.ps", adjust=true, fmt="tif")
-	gmt("grdinfo lixo.tif");
+	psconvert("lixo.ps", adjust=true, Vd=2)
+	P = gmtread("lixo.ps", ps=true);
+	psconvert(P, adjust=true, in_memory=true, Vd=2)
+	gmt("write lixo.ps", P)		# Test also this case in gmt_main
 
 	@show("PSCOAST")
 	# PSCOAST
@@ -699,7 +713,7 @@ if (got_it)					# Otherwise go straight to end
 	rose!(data, yx=[], A=20, R="0/25/0/360", B="xa10g10 ya10g10", W=1, G="orange", D=1, S=4, Vd=:cmd)
 	rose!("",data, yx=[], A=20, R="0/25/0/360", B="xa10g10 ya10g10", W=1, G="orange", D=1, S=4, Vd=:cmd)
 	if (GMTver >= 6)
-		rose(data, yx=[], A=20, I=1, Vd=:cmd);		# Broken in GMT5`
+		rose(data, yx=[], A=20, I=1);		# Broken in GMT5`
 	end
 
 	@show("PSMASK")
@@ -760,7 +774,7 @@ if (got_it)					# Otherwise go straight to end
 
 	# SPHDISTANCE  (would fail with: Could not obtain node-information from the segment headers)
 	G = sphdistance(R="0/10/0/10", I=0.1, Q=D, L=:k, Vd=2);	# But works with data from sph_3.sh test
-	@test sphdistance(R="0/10/0/10", I=0.1, Q="D", L=:k, Vd=2) == "sphdistance  -I0.1 -R0/10/0/10 -Lk -QD"
+	@test sphdistance(nothing, R="0/10/0/10", I=0.1, Q="D", L=:k, Vd=2) == "sphdistance  -I0.1 -R0/10/0/10 -Lk -QD"
 
 	# SURFACE
 	G = surface(rand(100,3) * 150, R="0/150/0/150", I=1, Ll=-100, upper=100);
@@ -874,7 +888,7 @@ if (got_it)					# Otherwise go straight to end
 	rm("gmt.conf")
 	rm("lixo.ps")
 	rm("lixo.png")
-	#rm("lixo.eps")
+	rm("lixo.eps")
 	rm("lixo.grd")
 	rm("lixo.tif")
 	rm("lixo.cpt")

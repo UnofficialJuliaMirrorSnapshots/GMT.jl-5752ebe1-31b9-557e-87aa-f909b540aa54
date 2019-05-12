@@ -335,6 +335,7 @@ function parse_B(cmd::String, d::Dict, opt_B::String="", del=false)
 		if (opt_B == "" && (val = find_in_dict(d, [:xaxis :yaxis :zaxis])[1] === nothing))
 			opt_B = def_fig_axes
 		else
+			if (opt_B == def_fig_axes)  opt_B = ""  end		# opt_B = def_fig_axes from argin but no good here
 			if !( ((ind = findlast("-B",opt_B)) !== nothing || (ind = findlast(" ",opt_B)) !== nothing) &&
 				  (occursin(r"[WESNwesntlbu+g+o]",opt_B[ind[1]:end])) )
 				t = " " * t;		# Do not glue, for example, -Bg with :title
@@ -371,7 +372,7 @@ function parse_B(cmd::String, d::Dict, opt_B::String="", del=false)
 
 	# We can have one or all of them. Deal separatelly here to allow way code to keep working
 	this_opt_B = "";
-	for symb in [:xaxis :yaxis :zaxis :axis2 :xaxis2 :yaxis2 :zaxis2]
+	for symb in [:yaxis2 :xaxis2 :axis2 :zaxis :yaxis :xaxis]
 		if (haskey(d, symb) && isa(d[symb], NamedTuple))
 			if     (symb == :axis2)   this_opt_B = axis(d[symb], secondary=true)
 			elseif (symb == :xaxis)   this_opt_B = axis(d[symb], x=true) * this_opt_B
@@ -966,15 +967,7 @@ function add_opt(nt::NamedTuple, mapa::NamedTuple, arg=nothing)
 			else          cmd *= "1"	# "1" is itself the flag
 			end
 		elseif (d[key[k]] != "" && d[key[k]][1] == '|')		# Potentialy append to the arg matrix
-			if (arg === nothing)
-				@warn(@sprintf("The key %s implies appending to input but the 'arg' variable is empty. Ignoring it.",key[k]))
-				continue
-			end
 			if (isa(nt[k], AbstractArray) || isa(nt[k], NTuple))
-				if (mod(length(arg), length(nt[k])) != 0)
-					@warn("The columns to be appended do not have the same number of rows as the input data. Ignoring it.")
-					continue
-				end
 				if (isa(nt[k], AbstractArray))  append!(arg, reshape(nt[k], :))
 				else                            append!(arg, reshape(collect(nt[k]), :))
 				end
@@ -1303,6 +1296,7 @@ function axis(;x=false, y=false, z=false, secondary=false, kwargs...)
 	if (haskey(d, :annot))      ints *= "a" * helper1_axes(d[:annot])  end
 	if (haskey(d, :annot_unit)) ints *= helper2_axes(d[:annot_unit])   end
 	if (haskey(d, :ticks))      ints *= "f" * helper1_axes(d[:ticks])  end
+	if (haskey(d, :ticks_unit)) ints *= helper2_axes(d[:ticks_unit])   end
 	if (haskey(d, :grid))       ints *= "g" * helper1_axes(d[:grid])   end
 	if (haskey(d, :prefix))     ints *= "+p" * str_with_blancs(arg2str(d[:prefix]))  end
 	if (haskey(d, :suffix))     ints *= "+u" * str_with_blancs(arg2str(d[:suffix]))  end
@@ -1798,15 +1792,20 @@ function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", is3D=fa
 	cmd, opt_di = parse_di(cmd, d)		# If data missing data other than NaN
 	lixo, opt_h = parse_h("", d)		# Experimentally, put the header test here
 	if (isa(data_kw, String))
-		lixo, opt_bi = parse_bi("", d)	# See if user says file is binary
-		if (GMTver >= 6)				# Due to a bug in GMT5, gmtread has no -i option
-			data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * opt_h * " " * data_kw)
-			if (opt_i != "")			# Remove the -i option from cmd. It has done its job
-				cmd = replace(cmd, opt_i => "")
-				opt_i = ""
+		if (opt_R == "")				# Then we must read the file to determine -R
+			lixo, opt_bi = parse_bi("", d)	# See if user says file is binary
+			if (GMTver >= 6)				# Due to a bug in GMT5, gmtread has no -i option
+				data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * opt_h * " " * data_kw)
+				if (opt_i != "")			# Remove the -i option from cmd. It has done its job
+					cmd = replace(cmd, opt_i => "")
+					opt_i = ""
+				end
+			else
+				data_kw = gmt("read -Td " * opt_bi * opt_di * opt_h * " " * data_kw)
 			end
-		else
-			data_kw = gmt("read -Td " * opt_bi * opt_di * opt_h * " " * data_kw)
+		else							# No need to find -R so let the GMT module read the file
+			cmd = data_kw * " " * cmd
+			data_kw = nothing			# Prevent that it goes (repeated) into 'arg'
 		end
 	end
 

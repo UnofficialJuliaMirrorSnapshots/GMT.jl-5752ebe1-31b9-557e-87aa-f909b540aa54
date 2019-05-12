@@ -1,7 +1,7 @@
 GMT.jl
 ======
 
-Julia wrapper for the Generic Mapping Tools [GMT](http://gmt.soest.hawaii.edu)
+Julia wrapper for the Generic Mapping Tools [GMT](https://github.com/GenericMappingTools/gmt)
 
 | **Documentation**                       | **Build Status (Julia 1.1)**              |
 |:---------------------------------------:|:-----------------------------------------:|
@@ -26,6 +26,10 @@ The Generic Mapping Tools, **GMT**, is an open source collection of tools for ma
 and Cartesian data sets (including filtering, trend fitting, gridding, projecting, etc.) and producing
 PostScript illustrations ranging from simple x–y plots via contour maps to artificially illuminated
 surfaces and 3D perspective views.
+[This link](https://www.google.com/search?q=%22generic+mapping+tools%22+site%3Awikimedia.org&tbm=isch#imgrc=_)
+will take you to an impressive collection of figures made with **GMT**
+
+<a href="https://www.google.com/search?q=%22generic+mapping+tools%22+site%3Awikimedia.org&tbm=isch#imgrc=_"><img src="docs/src/figures/GMT_wikimeia.jpg" width="800" class="center"/></a>
 
 This wrapper works with GMT5.3.1 and above and it is intended not only to access to **GMT** from
 within the Julia language but also to provide a more modern interface to the **GMT** modules.
@@ -39,7 +43,7 @@ one can simply do:
 
 or, more verbose but easier to read
 
-    coast(region=:global, proj=:Winkel, frame=:g, resolution=:crude, area=10000,
+    coast(region=:global, proj=:Winkel, frame=:g, area=10000,
           land=:burlywood4, water=:wheat1, figsize=12, show=true)
 
 instead of
@@ -56,7 +60,7 @@ Install
     ]add GMT
 
 A word of warning about the installation. The *GMT.jl* Julia wrapper does **NOT** install the
-[GMT](http://gmt.soest.hawaii.edu) program. It's the user responsability to do that.
+[GMT](https://github.com/GenericMappingTools/gmt) program. It's the user responsability to do that.
 
   * Windows64
      1. It's better to install the [GMT6dev version](http://w3.ualg.pt/~jluis/mirone/downloads/gmt.html)
@@ -99,7 +103,7 @@ is most than wellcome.
 Documentation
 =============
 
-[Latest Docs](https://genericmappingtools.github.io/GMT.jl/latest)
+[Latest Docs](https://www.generic-mapping-tools.org/gmt/latest/)
 
 Examples
 ========
