@@ -39,6 +39,8 @@ before_install:
       #- wget http://w3.ualg.pt/~jluis/ftp/gshhg-gmt-2.3.7.tar.gz
       - wget https://mirrors.ustc.edu.cn/gmt/gshhg-gmt-2.3.7.tar.gz
       - tar -xvzf gshhg-gmt-2.3.7.tar.gz
+      - wget https://mirrors.ustc.edu.cn/gmt/dcw-gmt-1.1.4.tar.gz
+      - tar -xvzf dcw-gmt-1.1.4.tar.gz
       - mkdir build
       - cd build
       - cmake --config Release .. -DSUPPORT_EXEC_IN_BINARY_DIR=TRUE -DGMT_OPENMP=ON -DCMAKE_INSTALL_PREFIX=$HOME/gmt -DGSHHG_ROOT=$HOME/gmt/gshhg-gmt-2.3.7
@@ -49,9 +51,9 @@ before_install:
 
 # uncomment the following lines to override the default test script
 script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("GMT"); Pkg.test("GMT"; coverage=true);'
+  #- if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia -e 'using Pkg; Pkg.build(); Pkg.test(; coverage=true);'
 after_success:
   - julia -e 'using Pkg; cd(Pkg.dir("GMT")); Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())'
-  - julia -e 'using Pkg; ps=Pkg.PackageSpec(name="Documenter", version="0.19"); Pkg.add(ps); Pkg.pin(ps)'
+  - julia -e 'using Pkg; ps=Pkg.PackageSpec(name="Documenter"); Pkg.add(ps); Pkg.pin(ps)'
   - julia -e 'using Pkg; cd(Pkg.dir("GMT")); include(joinpath("docs", "make.jl"))'
