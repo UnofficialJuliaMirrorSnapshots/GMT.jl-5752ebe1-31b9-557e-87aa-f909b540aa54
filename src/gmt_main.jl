@@ -143,18 +143,14 @@ function gmt(cmd::String, args...)
 
 	# 2+ Add -F to psconvert if user requested a return image but did not give -F.
 	# The problem is that we can't use nargout to decide what to do, so we use -T to solve the ambiguity.
-	if (g_module == "psconvert" && ((r == "") || !occursin("-F", r)) )
-		if (r == "")
-			r = "-F"
-		else
-			if (!occursin("-T", r))
+	if (g_module == "psconvert" && !occursin("-F", r))
+		if (!occursin("-T", r))
+			r *= " -F"
+		else				# Hmm, have to find if any of 'e' or 'f' are used as -T flags
+			ind = findfirst("-T", r)
+			tok = lowercase(strtok(r[ind[2]:end])[1])
+			if (!occursin("e", tok) && !occursin("f", tok))	# No any -Tef combo so add -F
 				r *= " -F"
-			else								# Hmm, have to find if any of 'e' or 'f' are used as -T flags
-				ind = findfirst("-T", r)
-				tok = lowercase(strtok(r[ind[2]:end])[1])
-				if (!occursin("e", tok) && !occursin("f", tok))	# No any -Tef combo so add -F
-					r *= " -F"
-				end
 			end
 		end
 	end
@@ -196,9 +192,7 @@ function gmt(cmd::String, args...)
 
 	# 3. Convert command line arguments to a linked GMT option list
 	LL = NULL
-	if (isempty(r) && n_argin == 0)		# Just requesting usage message, so add -? to options
-		r = "-?"
-	end
+	if (r == "" && n_argin == 0)  r = "-?"   end	# Just requesting usage message, so add -? to options
 	LL = GMT_Create_Options(API, 0, r)	# It uses also the fact that GMT parses and check options
 
 	# 4. Preprocess to update GMT option lists and return info array X
@@ -206,10 +200,8 @@ function gmt(cmd::String, args...)
 	# Here I have an issue that I can't resolve any better. For modules that can have no options (e.g. gmtinfo)
 	# the LinkedList (LL) is actually created in GMT_Encode_Options but I can't get it's contents back when pLL
 	# is a Ref, so I'm forced to use 'pointer', which goes against the documents recommendation.
-	if (LL != NULL)
-		pLL = Ref([LL], 1)
-	else
-		pLL = pointer([NULL])
+	if (LL != NULL)  pLL = Ref([LL], 1)
+	else             pLL = pointer([NULL])
 	end
 
 	n_items = pointer([0])
@@ -234,9 +226,7 @@ function gmt(cmd::String, args...)
 	name_PS = ""
 	object_ID = zeros(Int32, n_items)
 	for k = 1:n_items					# Number of GMT containers involved in this module call */
-		if (X[k].direction == GMT_IN && n_argin == 0)
-			error("GMT: Expected a Matrix for input")
-		end
+		if (X[k].direction == GMT_IN && n_argin == 0) error("GMT: Expects a Matrix for input") end
 		ptr = (X[k].direction == GMT_IN) ? args[X[k].pos+1] : nothing
 		GMTJL_Set_Object(API, X[k], ptr)	# Set object pointer
 	end
@@ -454,12 +444,8 @@ function get_grid(API::Ptr{Nothing}, object)
 	# Return grids via a float matrix in a struct
 	out = GMTgrid("", "", zeros(6)*NaN, zeros(2)*NaN, 0, NaN, "", "", "", "", X, Y, z, "", "", "", "")
 
-	if (gmt_hdr.ProjRefPROJ4 != C_NULL)
-		out.proj4 = unsafe_string(gmt_hdr.ProjRefPROJ4)
-	end
-	if (gmt_hdr.ProjRefWKT != C_NULL)
-		out.wkt = unsafe_string(gmt_hdr.ProjRefWKT)
-	end
+	if (gmt_hdr.ProjRefPROJ4 != C_NULL)  out.proj4 = unsafe_string(gmt_hdr.ProjRefPROJ4)  end
+	if (gmt_hdr.ProjRefWKT != C_NULL)    out.wkt = unsafe_string(gmt_hdr.ProjRefWKT)      end
 
 	# The following is uggly is a consequence of the clag.jl translation of fixed sixe arrays
 	out.range = vec([gmt_hdr.wesn[1] gmt_hdr.wesn[2] gmt_hdr.wesn[3] gmt_hdr.wesn[4] gmt_hdr.z_min gmt_hdr.z_max])
@@ -533,12 +519,8 @@ function get_image(API::Ptr{Nothing}, object)
 	end
 	unsafe_store!(convert(Ptr{GMT_IMAGE}, object), I)
 
-	if (gmt_hdr.ProjRefPROJ4 != C_NULL)
-		out.proj4 = unsafe_string(gmt_hdr.ProjRefPROJ4)
-	end
-	if (gmt_hdr.ProjRefWKT != C_NULL)
-		out.ProjRefWKT = unsafe_string(gmt_hdr.ProjRefWKT)
-	end
+	if (gmt_hdr.ProjRefPROJ4 != C_NULL)  out.proj4 = unsafe_string(gmt_hdr.ProjRefPROJ4)  end
+	if (gmt_hdr.ProjRefWKT != C_NULL)  out.ProjRefWKT = unsafe_string(gmt_hdr.ProjRefWKT) end
 
 	out.range = vec([gmt_hdr.wesn[1] gmt_hdr.wesn[2] gmt_hdr.wesn[3] gmt_hdr.wesn[4] gmt_hdr.z_min gmt_hdr.z_max])
 	out.inc          = vec([gmt_hdr.inc[1] gmt_hdr.inc[2]])
@@ -719,9 +701,7 @@ function get_dataset(API::Ptr{Nothing}, object)
 # proj4:	String with any proj4 information
 # wkt:		String with any WKT information
 
-	if (object == C_NULL)		# No output produced (?) - return a null data set
-		return GMTdataset()
-	end
+	if (object == C_NULL)  return GMTdataset()  end		# No output produced - return a null data set
 	D = unsafe_load(convert(Ptr{GMT_DATASET}, object))
 
 	seg_out = 0
