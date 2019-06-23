@@ -11,11 +11,13 @@ end
 
 if (got_it)					# Otherwise go straight to end
 
-	GMT.GMT_Get_Version();
-	ma=[0];mi=[0];pa=[0];
-	GMT.GMT_Get_Version(ma,mi,pa);
-	API = GMT.GMT_Create_Session("GMT", 2, GMT.GMT_SESSION_NOEXIT + GMT.GMT_SESSION_EXTERNAL);
-	GMT.GMT_Get_Ctrl(API);
+	if (GMTver >= 6)
+		GMT.GMT_Get_Version();
+		ma=[0];mi=[0];pa=[0];
+		GMT.GMT_Get_Version(ma,mi,pa);
+		API = GMT.GMT_Create_Session("GMT", 2, GMT.GMT_SESSION_NOEXIT + GMT.GMT_SESSION_EXTERNAL);
+		GMT.GMT_Get_Ctrl(API);
+	end
 
 	# -------------------- Test common_options ----------------------------------------
 	@test GMT.parse_R("", Dict(:xlim => (1,2), :ylim => (3,4), :zlim => (5,6)))[1] == " -R1/2/3/4/5/6"
@@ -162,7 +164,7 @@ if (got_it)					# Otherwise go straight to end
 	@test startswith(psxy([0.0, 1],[0, 1.1], aspect=:equal, Vd=2), "psxy  -JX12c/0")
 	psxy!([0 0; 1 1.1], Vd=2);
 	psxy!("", [0 0; 1 1.1], Vd=2);
-	GMT.get_marker_name(Dict(:y => "y"), [:y])
+	GMT.get_marker_name(Dict(:y => "y"), [:y], false)
 	@test_throws ErrorException("Argument of the *bar* keyword can be only a string or a NamedTuple.") GMT.parse_bar_cmd(Dict(:a => 0), :a, "", "")
 
 	@test_throws ErrorException("Custom annotations NamedTuple must contain the member 'pos'") GMT.helper3_axes((post=1:5,), 'p', "x")
@@ -190,7 +192,7 @@ if (got_it)					# Otherwise go straight to end
 	@test GMT.parse_j("", Dict(:spheric_dist => "f"))[1] == " -jf"
 	# ---------------------------------------------------------------------------------------------------
 
-	gmt("begin"); gmt("end")
+	if (GMTver >= 6)  gmt("begin"); gmt("end")  end
 	gmt("psxy -");
 	r = gmt("gmtinfo -C", ones(Float32,9,3)*5);
 	@assert(r[1].data == [5.0 5 5 5 5 5])
@@ -286,11 +288,13 @@ if (got_it)					# Otherwise go straight to end
 		@test(sum(G.z[:] - GG.z[:]) == 0)
 		gmtwrite("lixo.grd", rand(5,5), id=:cf, layout=:TC)
 		gmtwrite("lixo.tif", rand(UInt8,32,32,3), driver=:GTiff)
+		@show("           1")
 		I = gmtread("lixo.tif", img=true, layout="TCP");
 		I = gmtread("lixo.tif", img=true, band=0);
 		I = gmtread("lixo.tif", img=true, band=[0 1 2]);
 		imshow(I, show=false)			# Test this one here because we have a GMTimage at hand
 		gmtwrite("lixo.tif", mat2img(rand(UInt8,32,32,3)), driver=:GTiff)
+		@show("           2")
 		@test GMT.parse_grd_format(Dict(:nan => 0)) == "+n0"
 		@test_throws ErrorException("Number of bands in the 'band' option can only be 1 or 3") GMT.gmtread("", band=[1 2])
 		@test_throws ErrorException("Format code MUST have 2 characters and not bla") GMT.parse_grd_format(Dict(:id => "bla"))
@@ -298,6 +302,7 @@ if (got_it)					# Otherwise go straight to end
 		gmtwrite("lixo.grd", G)
 		GG = gmtread("lixo.grd", grd=true, varname=:z);
 	end
+	@show("           3")
 	@test_throws ErrorException("Must select one input data type (grid, image, dataset, cmap or ps)") GG = gmtread("lixo.grd");
 	cpt = makecpt(T="-6/8/1");
 	gmtwrite("lixo.cpt", cpt)
@@ -339,13 +344,13 @@ if (got_it)					# Otherwise go straight to end
 	D2=grd2xyz("lixo.grd");
 	@assert(sum(D1[1].data) == sum(D2[1].data))
 
-	@show("GRD2KML")
-	# GRD2KML
-	G=gmt("grdmath", "-R0/10/0/10 -I1 X -fg");
-	grd2kml(G, I="+", N="NULL")
-
 	# GRDBLEND
 	if (GMTver >= 6)
+		@show("GRD2KML")
+		# GRD2KML
+		G=gmt("grdmath", "-R0/10/0/10 -I1 X -fg");
+		grd2kml(G, I="+", N="NULL")
+
 		G3=gmt("grdmath", "-R5/15/0/10 -I1 X Y");
 		G2=grdblend(G,G3);
 	end
@@ -425,7 +430,7 @@ if (got_it)					# Otherwise go straight to end
 	G2 = grdtrend(G, model=3);
 	W = mat2grid(ones(Float32, size(G.z,1), size(G.z,2)));
 	G2 = grdtrend(G, model=3, diff=[], trend=true);
-	G2 = grdtrend(G, model="3+r", W=W);
+	#G2 = grdtrend(G, model="3+r", W=W);
 	G2 = grdtrend(G, model="3+r", W=(W,0), Vd=2);
 
 	# GRDTRACK
@@ -450,7 +455,7 @@ if (got_it)					# Otherwise go straight to end
 	grdvector(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), G=:black, W="1p", S=12)
 	grdvector!(dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65, shape=0.5), W="1p", S=12, Vd=2)
 	r = grdvector!("",dzdx, dzdy, I=0.2, vector=(len=0.25, stop=1, norm=0.65), W="1p", S=12, Vd=2);
-	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.65 -W1p")
+	if (GMTver >= 6)  @test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.65 -W1p")  end
 	r = grdvector!("", 1, 2, I=0.2, vec="0.25+e+n0.66", W=1, S=12, Vd=2);
 	@test startswith(r, "grdvector  -R -J -I0.2 -S12 -Q0.25+e+n0.66 -W1")
 
@@ -533,6 +538,18 @@ if (got_it)					# Otherwise go straight to end
 	plot([5 5], region=(0,10,0,10), frame=(annot=:a, ticks=:a, grid=5), figsize=10, symbol=:p, markerline=0.5, fill=:lightblue, E=(Y=[2 3 6 9],pen=1,cap="10p"), Vd=2);
 	plot(rand(10,4), S=:c, ms=0.2, markeredgecolor=:red, ml=2, Vd=2)
 	plot(rand(10,4), S=:c, ms=0.2, ml=2, W=1, Vd=2)
+	@test startswith(plot!([1 1], marker=(:r, [2 3]), Vd=2), "psxy  -R -J -Sr")
+	@test_throws ErrorException("Wrong number of extra columns for marker (r). Got 3 but expected 2") plot!([1 1], marker=(:r, [2 3 4]), Vd=2)
+	@test startswith(plot!([1 1], marker=(:Web, [2 3], (inner=5, arc=30,radial=45, pen=(2,:red))), Vd=2), "psxy  -R -J -SW/5+a30+r45+p2,red")
+	@test startswith(plot!([1 1], marker=(Web=true, inner=5, arc=30,radial=45, pen=(2,:red)), Vd=2), "psxy  -R -J -SW/5+a30+r45+p2,red")
+	@test startswith(plot!([1 1], marker="W/5+a30", Vd=2), "psxy  -R -J -SW/5+a30")
+	@test startswith(plot!([1 1], marker=:Web, Vd=2), "psxy  -R -J -SW")
+	@test startswith(plot!([1 1], marker=:W, Vd=2), "psxy  -R -J -SW")
+	@test startswith(plot([5 5], marker=(:E, 500), Vd=2), "psxy  -JX12c/8c -Baf -BWSen -R4.5/5.5/4.5/5.5 -SE-500")
+	@test startswith(plot(region=(0,10,0,10), marker=(letter="blaBla", size="16p"), Vd=2), "psxy  -R0/10/0/10 -JX12c/8c -Baf -BWSen -Sl16p+tblaBla")
+	@test startswith(plot([5 5], region=(0,10,0,10), marker=(bar=true, size=0.5, base=0,), Vd=2), "psxy  -R0/10/0/10 -JX12c/8c -Baf -BWSen -Sb0.5+b0")
+	@test startswith(plot([5 5], region=(0,10,0,10), marker=(custom=:sun, size=0.5), Vd=2), "psxy  -R0/10/0/10 -JX12c/8c -Baf -BWSen -Sksun/0.5")
+	plot([5 5 0 45], region=(0,10,0,10), marker=(pie=true, arc=15, radial=30), Vd=2)
 	plot3d(rand(5,3), marker=:cube)
 	plot3d!(rand(5,3), marker=:cube, Vd=2)
 	plot3d("", rand(5,3), Vd=2)
@@ -677,8 +694,10 @@ if (got_it)					# Otherwise go straight to end
 	@show("PSCONVERT")
 	# PSCONVERT
 	gmt("psbasemap -R-10/0/35/45 -Ba -P -JX10d > lixo.ps")
-	psconvert("lixo.ps", adjust=true, fmt="eps", C="-dDOINTERPOLATE")
-	psconvert("lixo.ps", adjust=true, fmt="eps", C=["-dDOINTERPOLATE" "-dDOINTERPOLATE"])
+	if (GMTver >= 6)
+		psconvert("lixo.ps", adjust=true, fmt="eps", C="-dDOINTERPOLATE")
+		psconvert("lixo.ps", adjust=true, fmt="eps", C=["-dDOINTERPOLATE" "-dDOINTERPOLATE"])
+	end
 	psconvert("lixo.ps", adjust=true, fmt="tif")
 	psconvert("lixo.ps", adjust=true, Vd=2)
 	P = gmtread("lixo.ps", ps=true);
