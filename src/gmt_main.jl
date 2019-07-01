@@ -1379,7 +1379,6 @@ end
 
 # ---------------------------------------------------------------------------------------------------
 function ogr2GMTdataset(in::Ptr{OGR_FEATURES})
-@show("MERDA")
 	OGR_F = unsafe_load(in)
 	n_max = OGR_F.n_rows * OGR_F.n_cols * OGR_F.n_layers
 	D = Array{GMTdataset, 1}(undef, OGR_F.n_filled)
@@ -1509,9 +1508,8 @@ Inquire about GMT version. Will return 5.3 for all versions up to this one and t
 """
 function get_GMTversion(API::Ptr{Nothing})
 	status = GMT_Call_Module(API, "psternary", GMT.GMT_MODULE_EXIST, C_NULL)
-	if (status != 0)
-		ver = 5.3
-	else
+	ver = 5.3
+	if (status == 0)
 		value = "        "
 		GMT_Get_Default(API, "API_VERSION", value)
 		ver = Meta.parse(value[1:3])
@@ -1577,7 +1575,10 @@ D = mat2ds(mat; x=nothing, hdr=nothing, color=nothing)
 	`color` optional array with color names. Its length can be smaller than n_rows, case in which colors will be
 	cycled.
 """
-function mat2ds(mat; x=nothing, hdr=nothing, color=nothing, ls=nothing)
+function mat2ds(mat; x=nothing, hdr=nothing, color=nothing, ls=nothing, text=nothing)
+	
+	if (text !== nothing)  return text_record(mat, text, hdr)  end
+
 	if (x === nothing)
 		n_ds = size(mat, 2) - 1
 		xx = nothing
