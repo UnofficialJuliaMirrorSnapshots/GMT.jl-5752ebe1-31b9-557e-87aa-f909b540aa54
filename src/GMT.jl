@@ -44,8 +44,9 @@ export
 	pssolar, pssolar!, psternary, psternary!, pstext, pstext!, pswiggle, pswiggle!, psxy, psxy!, psxyz, 
 	psxyz!, regress, rose, rose!, sample1d, scatter, scatter!, scatter3, scatter3!, solar, solar!, spectrum1d,
 	sphdistance, sphinterpolate, sphtriangulate, surface, ternary, ternary!,
-	text, text!, text_record, trend1d, trend2d, triangulate, splitxyz, subplot,
+	text, text!, text_record, trend1d, trend2d, triangulate, splitxyz,
 	decorated, vector_attrib, wiggle, wiggle!, xyz2grd,
+	gmtbegin, gmtend, subplot, gmtfig, inset,
 	linspace, logspace, contains, fields, tic, toc
 
 include("common_docs.jl")
@@ -53,6 +54,7 @@ include("libgmt_h.jl")
 include("libgmt.jl")
 include("gmt_main.jl")
 include("common_options.jl")
+include("gmtbegin.jl")
 include("blocks.jl")
 include("filter1d.jl")
 include("fitcircle.jl")
