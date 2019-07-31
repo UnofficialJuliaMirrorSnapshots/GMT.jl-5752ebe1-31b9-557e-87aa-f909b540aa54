@@ -148,7 +148,8 @@ function parse_J(cmd::String, d::Dict, default="", map=true, O=false, del=false)
 	opt_J = "";		mnemo = false
 	if ((val = find_in_dict(d, [:J :proj :projection], del)[1]) !== nothing)
 		opt_J, mnemo = build_opt_J(val)
-	elseif (IamModern)			# Subplots do not rely is the classic default mechanism
+	elseif (IamModern && ((val = find_in_dict(d, [:figscale :fig_scale :scale :figsize :fig_size])[1]) === nothing))
+		# Subplots do not rely is the classic default mechanism
 		return cmd, ""
 	end
 	if (!map && opt_J != "")
@@ -930,16 +931,25 @@ end
 function finish_PS_nested(d::Dict, cmd::String, output::String, K::Bool, O::Bool, nested_calls)
 	# Finish the PS creating command, but check also if we have any nested module calls like 'coast', 'colorbar', etc
 	if ((cmd2 = add_opt_module(d, nested_calls)) !== nothing)  K = true  end
-	cmd = finish_PS(d, cmd, output, K, O)
 	if (cmd2 !== nothing)  cmd = [cmd; cmd2]  end
 	return cmd, K
 end
 
 # ---------------------------------------------------------------------------------------------------
-function finish_PS(d::Dict, cmd::String, output::String, K::Bool, O::Bool)
+function finish_PS(d::Dict, cmd, output::String, K::Bool, O::Bool)
 	# Finish a PS creating command. All PS creating modules should use this.
 	global IamModern
-	if (IamModern)  return cmd  end	# In Modern mode this fun does not play
+	if (IamModern)  return cmd  end		# In Modern mode this fun does not play
+	if (isa(cmd, Array{String,1}))		# Need a recursive call here
+		for k = 1:length(cmd)
+			KK = K;		OO = O
+			if (!occursin(" >", cmd[k]))	# Nested calls already have the redirection set
+				if (k > 1)  KK = true;	OO = true  end
+				cmd[k] = finish_PS(d, cmd[k], output, KK, OO)
+			end
+		end
+		return cmd
+	end
 	if (!O && !haskey(d, :P) && !haskey(d, :portrait))  cmd *= " -P"  end
 
 	if (K && !O)              opt = " -K"
@@ -1857,38 +1867,43 @@ end
 # ---------------------------------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------------------------------
-function fname_out(d::Dict, first::Bool)
+function fname_out(d::Dict)
 	# Create an file name in the TMP dir when OUT holds only a known extension. The name is: GMTjl_tmp.ext
-	EXT = ""
-	if (haskey(d, :fmt))  out = string(d[:fmt])
-	else                  out = FMT						# Use the global FMT choice
-	end
-	if (out == "" && !Sys.iswindows())
-		error("NOT specifying the **fmt** format is only allowed on Windows")
-	end
-	if (haskey(d, :ps))			# In any case this means we want the PS sent back to Julia
-		out = "";	EXT = "ps"
-	end
-	# When OUT == "" here, it plays a double role. It means to put the PS in memory or
-	# return it to the REPL. The ambiguity is cleared in finish_PS_module()
 
-	opt_T = "";
-	if (out == "pdfg" || out == "gpdf")  out = "pdg"  end	# Trick to keep the ext with only 3 chars (for GeoPDFs)
-	if (length(out) <= 3)
-		@static Sys.iswindows() ? template = tempdir() * "GMTjl_tmp.ps" : template = tempdir() * "/" * "GMTjl_tmp.ps"
-		ext = lowercase(out)
-		if (ext == "ps")       out = template;  EXT = ext
-		elseif (ext == "pdf")  opt_T = " -Tf";	out = template;		EXT = ext
-		elseif (ext == "eps")  opt_T = " -Te";	out = template;		EXT = ext
-		elseif (ext == "png")  opt_T = " -Tg";	out = template;		EXT = ext
-		elseif (ext == "PNG")  opt_T = " -TG";	out = template;		EXT = "png"		# Don't want it to be .PNG
-		elseif (ext == "jpg")  opt_T = " -Tj";	out = template;		EXT = ext
-		elseif (ext == "tif")  opt_T = " -Tt";	out = template;		EXT = ext
-		elseif (ext == "pdg")  opt_T = " -Tf -Qp";	out = template;	EXT = "pdf"
+	fname = ""
+	EXT = FMT
+	if ((val = find_in_dict(d, [:savefig :name])[1]) !== nothing)
+		fname, EXT = splitext(string(val))
+		if (EXT == "")  EXT = FMT
+		else            EXT = EXT[2:end]
 		end
 	end
-	K, O = set_KO(first)		# Set the K O dance
-	return out, opt_T, EXT, K, O
+	if (EXT == FMT && haskey(d, :fmt))  EXT = string(d[:fmt])  end
+	if (EXT == "" && !Sys.iswindows())  error("Return an image is only for Windows")  end
+	if (1 == length(EXT) > 3)  error("Bad graphics file extension")  end
+
+	ret_ps = false				# To know if we want to return or save PS in mem
+	if (haskey(d, :ps))			# In any case this means we want the PS sent back to Julia
+		fname = "";		EXT = "ps";		ret_ps = true
+	end
+
+	opt_T = "";
+	if (EXT == "pdfg" || EXT == "gpdf")  EXT = "pdg"  end	# Trick to keep the ext with only 3 chars (for GeoPDFs)
+	@static Sys.iswindows() ? def_name = tempdir() * "GMTjl_tmp.ps" : def_name = tempdir() * "/" * "GMTjl_tmp.ps"
+	ext = lowercase(EXT)
+	if     (ext == "ps")   EXT = ext
+	elseif (ext == "pdf")  opt_T = " -Tf";	EXT = ext
+	elseif (ext == "eps")  opt_T = " -Te";	EXT = ext
+	elseif (ext == "png")  opt_T = " -Tg";	EXT = ext
+	elseif (EXT == "PNG")  opt_T = " -TG";	EXT = "png"		# Don't want it to be .PNG
+	elseif (ext == "jpg")  opt_T = " -Tj";	EXT = ext
+	elseif (ext == "tif")  opt_T = " -Tt";	EXT = ext
+	elseif (ext == "pdg")  opt_T = " -Tf -Qp";	EXT = "pdf"
+	else   error(@sprintf("Unknown graphics file extension (.%s)", EXT))
+	end
+
+	if (fname != "")  fname *= "." * EXT  end
+	return def_name, opt_T, EXT, fname, ret_ps
 end
 
 # ---------------------------------------------------------------------------------------------------
@@ -1904,7 +1919,7 @@ function read_data(d::Dict, fname::String, cmd, arg, opt_R="", opt_i="", is3D=fa
 	cmd, opt_di = parse_di(cmd, d)		# If data missing data other than NaN
 	cmd, opt_h  = parse_h(cmd, d)
 	if (isa(data_kw, String))
-		if (opt_R == "")				# Then we must read the file to determine -R
+		if (!IamModern && opt_R == "")				# Then we must read the file to determine -R
 			lixo, opt_bi = parse_bi("", d)	# See if user says file is binary
 			if (GMTver >= 6)				# Due to a bug in GMT5, gmtread has no -i option
 				data_kw = gmt("read -Td " * opt_i * opt_bi * opt_di * opt_h * " " * data_kw)
@@ -2091,6 +2106,7 @@ end
 # ---------------------------------------------------------------------------------------------------
 function common_grd(d::Dict, cmd::String, args...)
 	# This chunk of code is shared by several grdxxx modules, so wrap it in a function
+	if (IamModern)  cmd = replace(cmd, " -R " => " ")  end
 	if (dbg_print_cmd(d, cmd) !== nothing)  return cmd  end		# Vd=2 cause this return
 	# First case below is of a ARGS tuple(tuple) with all numeric inputs.
 	isa(args, Tuple{Tuple}) ? gmt(cmd, args[1]...) : gmt(cmd, args...)
@@ -2171,15 +2187,17 @@ function put_in_slot(cmd::String, val, opt::Char, args)
 end
 
 ## ---------------------------------------------------------------------------------------------------
-function finish_PS_module(d::Dict, cmd, opt_extra::String, output::String, fname_ext::String,
-	opt_T::String, K::Bool, O::Bool, finish::Bool, args...)
+function finish_PS_module(d::Dict, cmd, opt_extra, K::Bool, O::Bool, finish::Bool, args...)
 	# FNAME_EXT hold the extension when not PS
 	# OPT_EXTRA is used by grdcontour -D or pssolar -I to not try to create and view a img file
+	
+	output, opt_T, fname_ext, fname, ret_ps = fname_out(d)
+	if (ret_ps)  output = ""  end		# Here we don't want to save to file
 	if (finish) cmd = finish_PS(d, cmd, output, K, O)  end
 
 	if ((r = dbg_print_cmd(d, cmd)) !== nothing)  return r  end 	# For tests only
 	global img_mem_layout = add_opt("", "", d, [:layout])
-	global usedConfPar
+	global usedConfPar, IamModern
 
 	if (isa(cmd, Array{String, 1}))
 		for k = 1:length(cmd)
@@ -2192,23 +2210,16 @@ function finish_PS_module(d::Dict, cmd, opt_extra::String, output::String, fname
 	digests_legend_bag(d)			# Plot the legend if requested
 
 	if (usedConfPar)				# Hacky shit to force start over when --PAR options were use
-		usedConfPar = false
-		gmt("destroy")
+		usedConfPar = false;	gmt("destroy")
 	end
 
-	fname = ""
-	if (haskey(d, :savefig))		# Also ensure that file has the right extension
-		fname, ext = splitext(d[:savefig])
-		if (fname_ext != "")  fname *= '.' * fname_ext
-		else                  fname *= ext		# PS, otherwise shit had happened
+	if (!IamModern)
+		if (fname_ext == "" && opt_extra == "")		# Return result as an GMTimage
+			P = showfig(d, output, fname_ext, "", K)
+			gmt("destroy")							# Returning a PS screws the session
+		elseif ((haskey(d, :show) && d[:show] != 0) || fname != "")
+			showfig(d, output, fname_ext, opt_T, K, fname)
 		end
-	end
-
-	if (fname_ext == "" && opt_extra == "")		# Return result as an GMTimage
-		P = showfig(d, output, fname_ext, "", K)
-		gmt("destroy")							# Returning a PS screws the session
-	elseif ((haskey(d, :show) && d[:show] != 0) || fname != "")
-		showfig(d, output, fname_ext, opt_T, K, fname)
 	end
 	return P
 end
