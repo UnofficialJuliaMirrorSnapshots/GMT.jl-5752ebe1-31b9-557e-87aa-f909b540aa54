@@ -267,8 +267,9 @@ end
 function auto_JZ(cmd)
 	# Add the -JZ option to modules that should not need it (e.g. pscoast) when used after a
 	# -R with 6 elements. Without this a simple -J fails with a complain that ... -JZ is needed
-	global current_view
-	if (current_view !== nothing && !occursin("-JZ", cmd) && !occursin("-Jz", cmd))  cmd *= " -JZ0.01"  end
+	if (GMTver < 6 && current_view !== nothing && !occursin("-JZ", cmd) && !occursin("-Jz", cmd))
+		cmd *= " -JZ0.01"
+	end
 	return cmd
 end
 
@@ -1894,8 +1895,8 @@ function fname_out(d::Dict)
 	if     (ext == "ps")   EXT = ext
 	elseif (ext == "pdf")  opt_T = " -Tf";	EXT = ext
 	elseif (ext == "eps")  opt_T = " -Te";	EXT = ext
-	elseif (ext == "png")  opt_T = " -Tg";	EXT = ext
 	elseif (EXT == "PNG")  opt_T = " -TG";	EXT = "png"		# Don't want it to be .PNG
+	elseif (ext == "png")  opt_T = " -Tg";	EXT = ext
 	elseif (ext == "jpg")  opt_T = " -Tj";	EXT = ext
 	elseif (ext == "tif")  opt_T = " -Tt";	EXT = ext
 	elseif (ext == "pdg")  opt_T = " -Tf -Qp";	EXT = "pdf"
@@ -2217,7 +2218,7 @@ function finish_PS_module(d::Dict, cmd, opt_extra, K::Bool, O::Bool, finish::Boo
 		if (fname_ext == "" && opt_extra == "")		# Return result as an GMTimage
 			P = showfig(d, output, fname_ext, "", K)
 			gmt("destroy")							# Returning a PS screws the session
-		elseif ((haskey(d, :show) && d[:show] != 0) || fname != "")
+		elseif ((haskey(d, :show) && d[:show] != 0) || fname != "" || opt_T != "")
 			showfig(d, output, fname_ext, opt_T, K, fname)
 		end
 	end
@@ -2271,7 +2272,7 @@ function put_in_legend_bag(d::Dict, cmd, arg=nothing)
 	elseif (legend_type === nothing)
 		lab = ["y1"]
 	else
-		lab = [@sprintf("y%d", size(legend_type.label ,1))]
+		lab = [@sprintf("y%d", size(legend_type.label, 1))]
 	end
 
 	if ((isa(cmd_, Array{String, 1}) && !occursin("-O", cmd_[1])) || (isa(cmd_, String) && !occursin("-O", cmd_)))
