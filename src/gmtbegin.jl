@@ -13,6 +13,7 @@ function gmtbegin(name::String=""; fmt=nothing, verbose=nothing)
 	cmd = "begin"       # Default name (GMTplot.ps) is set in gmt_main()
 	if (name != "")  cmd *= " " * get_format(name, fmt)  end
 	if (verbose !== nothing)  cmd *= " -V" * string(verbose)  end
+	gmt("destroy")		# Always start with a clean session
 	gmt(cmd)
 	return nothing
 end
@@ -27,6 +28,7 @@ function gmtend(show=nothing; verbose=nothing)
 	if (show !== nothing)  cmd *= " show"  end
 	if (verbose !== nothing)  cmd *= " -V" * string(verbose)  end
 	gmt(cmd)
+	gmt("destroy")		# Lieve it in a clean state
 	return nothing
 end
  
@@ -58,14 +60,13 @@ function inset(fim=nothing; stop=false, kwargs...)
 	d = KW(kwargs)
 	cmd = parse_common_opts(d, "", [:c :F :V_params], true)
 	cmd = parse_these_opts(cmd, d, [[:M :margins]])
-    cmd = parse_type_anchor(d, cmd, [[:D :inset :inset_box]])
+	cmd = parse_type_anchor(d, cmd, [[:D :inset :inset_box]])
 
 	do_show = false
 	if (fim !== nothing)
 		t = lowercase(string(fim))
-		if     (t == "end" || t == "stop")  stop = true
-		elseif (t == "show")  stop = true;  do_show = true
-		end
+		if (t == "end" || t == "stop" || t == "show")  stop = true  end
+		if (t == "show")  do_show = true  end
 	end
 
 	if (!stop)

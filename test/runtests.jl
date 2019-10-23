@@ -506,7 +506,10 @@ if (got_it)					# Otherwise go straight to end
 	imshow(rand(128,128), view=:default, Vd=2)
 	imshow(G, axis=:a, shade="+a45",show=false)
 	imshow(rand(128,128), shade="+a45",show=false)
-	if (GMTver >= 6)  imshow("lixo.tif",show=false)  end
+	if (GMTver >= 6)
+		imshow("lixo.tif",show=false)
+		imshow(rand(UInt8(0):UInt8(255),256,256), colorbar=true, show=false)
+	end
 
 	# MAKECPT
 	cpt = makecpt(range="-1/1/0.1");
@@ -879,7 +882,7 @@ if (got_it)					# Otherwise go straight to end
 			basemap(region=:global360, J="A20/20/2i", frame=:afg)
 			text(text_record([1 1],["INSET"]), font=18, region_justify=:TR, D="j-0.15i", noclip=true)
 		inset(:end)
-		#text(text_record([0 0; 1 1.1],[" ";" "]), text="MAP", font=18, region_justify=:BL, D="j0.2i")	# Now fcks!!!
+		text(text_record([0 0; 1 1.1],[" ";" "]), text="MAP", font=18, region_justify=:BL, D="j0.2i")
 		gmtend()
 
 		gmtbegin(); gmtfig("lixo.ps");	gmtend()
@@ -936,6 +939,7 @@ if (got_it)					# Otherwise go straight to end
 	mat2ds(rand(6,6), color=[:red :blue]);
 	mat2ds(rand(5,4), x=:ny, color=:cycle, hdr=" -W1");
 	mat2ds(rand(5,4), x=1:5, hdr=[" -W1" "a" "b" "c"]);
+	@test_throws ErrorException("The header vector can only have length = 1 or same number of MAT Y columns") mat2ds(rand(2,3), hdr=["a"]);
 
 	GMT.get_datatype([]);
 	GMT.get_datatype(Float32(8));
