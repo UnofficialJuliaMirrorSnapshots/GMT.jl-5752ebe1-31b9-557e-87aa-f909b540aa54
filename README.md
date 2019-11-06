@@ -3,9 +3,9 @@ GMT.jl
 
 Julia wrapper for the Generic Mapping Tools [GMT](https://github.com/GenericMappingTools/gmt)
 
-| **Documentation**                       | **Build Status (Julia 1.1)**              |
-|:---------------------------------------:|:-----------------------------------------:|
-| [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] |
+| **Documentation**                       | **Build Status (Julia 1.2)**              | **Discourse Forum**   |
+|:---------------------------------------:|:-----------------------------------------:|:---------------------:|
+| [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] [![][appveyor-img]][appveyor-url] [![][codecov-img]][codecov-url] | [![][forum-img]][forum-url] |
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-latest-url]: https://genericmappingtools.github.io/GMT.jl/latest
@@ -18,6 +18,9 @@ Julia wrapper for the Generic Mapping Tools [GMT](https://github.com/GenericMapp
 
 [codecov-img]: http://codecov.io/github/GenericMappingTools/GMT.jl/coverage.svg?branch=master
 [codecov-url]: http://codecov.io/github/GenericMappingTools/GMT.jl?branch=master
+
+[forum-img]: https://img.shields.io/discourse/status?label=forum&server=https%3A%2F%2Fforum.generic-mapping-tools.org%2F&style=flat-square
+[forum-url]: https://forum.generic-mapping-tools.org
 
 The Generic Mapping Tools, **GMT**, is an open source collection of tools for manipulating geographic
 and Cartesian data sets (including filtering, trend fitting, gridding, projecting, etc.) and producing
@@ -60,17 +63,17 @@ A word of warning about the installation. The *GMT.jl* Julia wrapper does **NOT*
 [GMT](https://github.com/GenericMappingTools/gmt) program. It's the user responsability to do that.
 
   * Windows64
-      It's better to install the [GMT6 version](https://github.com/GenericMappingTools/gmt/releases/download/6.0.0rc4/GMT-6.0.0rc4-win64.exe)
+      It's better to install the [GMT6 version](https://github.com/GenericMappingTools/gmt/releases/download/6.0.0/GMT-6.0.0-win64.exe)
 
   * Windows32
 
-      Download and install the official version at (the [..._win32.exe](https://github.com/GenericMappingTools/gmt/releases/download/6.0.0rc4/GMT-6.0.0rc4-win32.exe))
+      Download and install the official version at (the [..._win32.exe](https://github.com/GenericMappingTools/gmt/releases/download/6.0.0/GMT-6.0.0-win32.exe))
 
   * Unix
   
       Follow instructions at <https://github.com/GenericMappingTools/gmt#install-gmt>
 
-  * Since *GMT* produces PostScript you need a PS interpreter. Windows installer como with ghostcript but on Mac/Linux you need to:
+  * Since *GMT* produces PostScript you need a PS interpreter. Windows installer comes with ghostcript but on Mac/Linux you need to:
 
       Install `Ghostscript` and `ghostview` at <https://www.ghostscript.com/download/gsdnld.html>
 
